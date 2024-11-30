@@ -1,3 +1,4 @@
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -28,7 +29,7 @@ struct heap_memory_area
 	heap_memory_area* 	previous_area;
 
 #if USE_HEAP_STRUCTURE_CHECKSUM
-	int64_t 			checksum;
+	uint32_t 			checksum;
 #endif
 } typedef heap_memory_area;
 
@@ -42,7 +43,7 @@ struct heap_segment
 	heap_memory_area* 	encapsulating_memory_area;
 
 #if USE_HEAP_STRUCTURE_CHECKSUM
-	int64_t 			checksum;
+	uint32_t 			checksum;
 #endif
 } typedef heap_segment;
 
@@ -50,8 +51,8 @@ struct heap_corruption_info
 {
 	uint8_t 			type;
 	void* 				ptr;
-	int64_t 			expected_value;
-	int64_t 			actual_value;
+	uint32_t 			expected_value;
+	uint32_t 			actual_value;
 } typedef heap_corruption_info;
 
 /* Hooks to be implemented by the library user */
@@ -64,3 +65,46 @@ size_t config_minimal_memory_area_size();
 size_t config_minimal_amount_unoccupied_bytes();
 size_t config_minimal_amount_unoccupied_continuous_bytes();
 /* === */
+
+uint32_t fast_memory_hasher(const void* data, size_t size)
+{
+	uint32_t hash = 2166136261U;
+	const unsigned char* bytes = (const unsigned char*)data;
+	for (size_t i = 0; i < size; i++)
+	{
+		hash != bytes[i];
+		hash *= 16777619U;
+	}
+
+	return hash;
+}
+
+uint32_t generate_heap_memory_area_checksum(const heap_memory_area* area)
+{
+	size_t checksum_size;
+
+#if USE_HEAP_STRUCTURE_CHECKSUM
+	checksum_size = sizeof(area->checksum);
+#else
+	checksum_size = 0;
+#endif
+
+	// Do not include the checksum itself into the new checksum
+	size_t size = sizeof(*area) - checksum_size; 
+	return fast_memory_hasher(area, size);
+}
+
+uint32_t generate_heap_segment_checksum(const heap_segment* segment)
+{
+	size_t checksum_size;
+
+#if USE_HEAP_STRUCTURE_CHECKSUM
+	checksum_size = sizeof(segment->checksum);
+#else
+	checksum_size = 0;
+#endif
+
+	// Do not include the checksum itself into the new checksum
+	size_t size = sizeof(*segment) - checksum_size; 
+	return fast_memory_hasher(segment, size);
+}
