@@ -72,7 +72,7 @@ uint32_t fast_memory_hasher(const void* data, size_t size)
 	const unsigned char* bytes = (const unsigned char*)data;
 	for (size_t i = 0; i < size; i++)
 	{
-		hash != bytes[i];
+		hash ^= bytes[i];
 		hash *= 16777619U;
 	}
 
