@@ -7,9 +7,6 @@
 #define MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION 1
 #define MIHP_USE_CANARY_VALIDATION 1
 
-#define MIHP_ZERO_OUT_MERGED_HEADERS 1
-#define MIHP_ZERO_OUT_ALLOCATIONS 1
-
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
 #define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
 #define MIHP_HEAP_CORRUPTION_TYPE_FRONT_CANARY_MISMATCH 2
@@ -21,6 +18,8 @@ typedef struct _MIHP_HeapConfig
 
 	size_t			MinimalMemoryAreaSize;
 	size_t			MaximalMemoryAreaSize;
+	
+	char			AllocationInitialValue;
 } MIHP_HeapConfig;
 
 typedef struct _MIHP_HeapStats
@@ -66,10 +65,11 @@ typedef struct _MIHP_HeapSegmentHeader
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
-	uint8_t 			Type;
-	const void* 		Ptr;
-	uint32_t 			ExpectedValue;
-	uint32_t 			ActualValue;
+	const struct _MIHP_HeapInfo*	Heap;
+	uint8_t 						Type;
+	const void* 					Ptr;
+	uint32_t 						ExpectedValue;
+	uint32_t 						ActualValue;
 } MIHP_HeapCorruptionInfo;
 
 /* Hooks to be implemented by the library user */
@@ -118,12 +118,12 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
 bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
 bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
-size_t MIHP_GetHeapAlignedSize(MIHP_HeapInfo* heap, size_t size);
+size_t MIHP_GetHeapAlignedSize(const MIHP_HeapInfo* heap, size_t size);
 
 uint32_t MIHP_HashMemoryRegion(const void* data, size_t size);
 uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_HeapMemoryAreaHeader* area);
 uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment);
 
-void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapMemoryAreaHeader* area);
-void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapSegmentHeader* segment);
+void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_HeapMemoryAreaHeader* area);
+void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSegmentHeader* segment);
 /* */
