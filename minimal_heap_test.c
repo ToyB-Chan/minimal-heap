@@ -7,14 +7,15 @@
 
 #define USE_MALLOC 0
 
-//#define MIHP_ValidateHeap()
+#define MIHP_ValidateHeap(x)
 
-void* MIHP_PlatformRequestMemory(size_t size)
+void* MIHP_PlatformRequestMemory(size_t minRequestedSize, size_t* outActualSize)
 {
-	return malloc(size);
+	*outActualSize = minRequestedSize;
+	return malloc(minRequestedSize);
 }
 
-bool MIHP_PlatformFreeMemory(void* ptr, size_t size)
+bool MIHP_PlatformFreeMemory(void* ptr, size_t actualSize)
 {
 	free(ptr);
 	return true;
