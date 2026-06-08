@@ -15,6 +15,14 @@
 #define MIHP_HEAP_CORRUPTION_TYPE_FRONT_CANARY_MISMATCH 2
 #define MIHP_HEAP_CORRUPTION_TYPE_REAR_CANARY_MISMATCH 3
 
+typedef struct _MIHP_HeapConfig
+{
+	size_t			AllocationAlignment;
+
+	size_t			MinimalMemoryAreaSize;
+	size_t			MaximalMemoryAreaSize;
+} MIHP_HeapConfig;
+
 typedef struct _MIHP_HeapStats
 {
 	size_t 				NumMemoryAreas;
@@ -73,7 +81,7 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
 /* Defines to be configured by the library user */
 #define MIHP_MINIMAL_MEMORY_AREA_SIZE (4096 * 32)
 
-#define MIHP_ASSERT(Condition) do { if (Condition) break; *(volatile char*)(0x0) = 0; } while(1)
+#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
 
 #define MIHP_HEAP_LOCK_TYPE uint8_t
 #define MIHP_LOCK_HEAP(LockVariablePtr) {}
@@ -82,15 +90,15 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
 
 typedef struct _MIHP_HeapInfo
 {
+	MIHP_HeapConfig Config;
 	MIHP_HeapStats Stats;
-	size_t AllocationAlignment;
 	MIHP_HeapMemoryAreaHeader* FirstArea;
 
 	MIHP_HEAP_LOCK_TYPE HeapLock;
 } MIHP_HeapInfo;
 
 /* API Interface */
-MIHP_HeapInfo* MIHP_CreateHeap(size_t initialSize, size_t allocationAlignment);
+MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config);
 bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force);
 void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size);
 void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize);
