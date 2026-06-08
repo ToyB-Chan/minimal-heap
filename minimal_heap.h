@@ -1,4 +1,4 @@
-/* Version 1.3 */
+/* Version 1.3b */
 
 #ifndef __MINIMAL_HEAP_H__
 #define __MINIMAL_HEAP_H__
