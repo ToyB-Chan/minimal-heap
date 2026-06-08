@@ -5,8 +5,16 @@
 
 #define MIHP_MEMSET(Ptr, Size, Val) for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val;
 
+#define MIHP_IS_PO2(Val) (Val != 0 && (Val & (Val - 1)) == 0)
+
 MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config)
 {
+	if (config.AllocationAlignment < sizeof(size_t))
+		return NULL;
+
+	if (!MIHP_IS_PO2(config.AllocationAlignment))
+		return NULL;
+
 	MIHP_HeapInfo* heap = (MIHP_HeapInfo*)MIHP_PlatformRequestMemory(sizeof(MIHP_HeapInfo));
 	if (heap == NULL)
 		return NULL;
@@ -236,6 +244,20 @@ bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr)
 
 	MIHP_UNLOCK_HEAP(&heap->HeapLock);
 	return false;
+}
+
+size_t MIHP_GetPtrAllocationSize(MIHP_HeapInfo* heap, void* ptr)
+{
+	if (!MIHP_IsPointerInHeap(heap, ptr))
+		return 0;
+
+	MIHP_LOCK_HEAP(&heap->HeapLock);
+
+	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_ValidateHeapSegmentHeader(heap, segment);
+
+	return segment->OccupiedSize;
 }
 
 void MIHP_ValidateHeap(MIHP_HeapInfo* heap)

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION 1
+#define MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION 0
 #define MIHP_USE_CANARY_VALIDATION 1
 
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
@@ -38,7 +38,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	size_t 							NumOccupiedSegments;
 
 	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
-	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
+	//struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
 	struct _MIHP_HeapInfo*				OwningHeap;
 	struct _MIHP_HeapSegmentHeader*		FirstSegment;
@@ -105,6 +105,7 @@ void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr);
 
 bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr);
+size_t MIHP_GetPtrAllocationSize(MIHP_HeapInfo* heap, void* ptr);
 void MIHP_ValidateHeap(MIHP_HeapInfo* heap);
 /* */
 
