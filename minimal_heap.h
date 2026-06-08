@@ -28,6 +28,7 @@ typedef struct _MIHP_HeapStats
 	size_t 				NumTotalSegments;
 	size_t 				NumTotalOccupiedSegments;
 	size_t 				TotalSize;
+	size_t				TotalOccupiedSize;
 } MIHP_HeapStats;
 
 // This structs size must be multiple of 8
@@ -73,7 +74,7 @@ typedef struct _MIHP_HeapCorruptionInfo
 } MIHP_HeapCorruptionInfo;
 
 /* Hooks to be implemented by the library user */
-void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alingment of size_t
+void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alignment of size_t
 bool MIHP_PlatformFreeMemory(void* ptr, size_t size);
 void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
 /* === */
@@ -93,6 +94,7 @@ typedef struct _MIHP_HeapInfo
 	MIHP_HeapConfig Config;
 	MIHP_HeapStats Stats;
 	MIHP_HeapMemoryAreaHeader* FirstArea;
+	MIHP_HeapMemoryAreaHeader* LastSuccessfulAllocationArea;
 
 	MIHP_HEAP_LOCK_TYPE HeapLock;
 } MIHP_HeapInfo;

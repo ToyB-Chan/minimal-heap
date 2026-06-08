@@ -21,7 +21,7 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info)
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 512)
+#define NUM_ALLOCATIONS (4096 * 128)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
@@ -31,7 +31,7 @@ int main()
 	config.AllocationInitialValue = 0xbe;
 	config.AllocationAlignment = 16;
 	config.MinimalMemoryAreaSize = 4096 * 32;
-	config.MaximalMemoryAreaSize = 4096ull * 4096ull * 4096ull;
+	config.MaximalMemoryAreaSize = 4096ull * 4096ull;
 	MIHP_HeapInfo* myHeap = MIHP_CreateHeap(config);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
