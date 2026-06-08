@@ -1,5 +1,7 @@
 #pragma once
 
+/* Version 1.0 */
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -8,7 +10,21 @@
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER 1
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM 2
 
+/* Defines to be configured by the library user */
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+
+#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
+
+#define MIHP_HEAP_LOCK_TYPE uint8_t // Does NOT have to be reentred safe
+#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
+#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
+/* */
+
+/* Hooks to be implemented by the library user */
+void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alignment of size_t
+bool MIHP_PlatformFreeMemory(void* ptr, size_t size);
+void MIHP_PlatformOnHeapCorruptionDetected(struct _MIHP_HeapCorruptionInfo info);
+/* */
 
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
 #define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
@@ -75,20 +91,6 @@ typedef struct _MIHP_HeapCorruptionInfo
 	uint32_t 						ExpectedValue;
 	uint32_t 						ActualValue;
 } MIHP_HeapCorruptionInfo;
-
-/* Hooks to be implemented by the library user */
-void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alignment of size_t
-bool MIHP_PlatformFreeMemory(void* ptr, size_t size);
-void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
-/* === */
-
-/* Defines to be configured by the library user */
-#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
-
-#define MIHP_HEAP_LOCK_TYPE uint8_t // Does NOT have to be reentred safe
-#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
-#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
-/* === */
 
 typedef struct _MIHP_HeapInfo
 {
