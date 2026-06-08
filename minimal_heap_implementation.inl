@@ -108,7 +108,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		{
 			MIHP_HeapSegmentHeader* currentSegment = nextSegment;
 			MIHP_ValidateHeapSegmentHeader(heap, currentSegment);
-			nextSegment = currentSegment->NextSegment;
+			nextSegment = nextSegment->NextSegment;
 
 			if (currentSegment->OccupiedSize != 0)
 				continue;
@@ -134,7 +134,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 			MIHP_UNLOCK_HEAP(&heap->HeapLock);
 
-			void* data = (char*)targetSegment + segmentHeaderSize;
+			void* data = MIHP_GetSegmentPayloadPtr(heap, targetSegment);
 			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
 
 			return data;
@@ -181,10 +181,10 @@ void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 	MIHP_LOCK_HEAP(&heap->HeapLock);
 
-	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
-	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
+	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
 	if (newSize > segment->OccupiedSize)
 	{
 		size_t maxPayloadSize = segment->SegmentSize - segmentHeaderSize;
@@ -253,8 +253,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	MIHP_LOCK_HEAP(&heap->HeapLock);
 
-	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
-	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
 	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
@@ -534,6 +533,22 @@ bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegm
 	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
 
 	return true;
+}
+
+void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
+{
+	MIHP_ASSERT(heap);
+	MIHP_ASSERT(segment);
+
+	return (char*)segment + MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+}
+
+MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr)
+{
+	MIHP_ASSERT(heap);
+	MIHP_ASSERT(payloadPtr);
+
+	return (MIHP_HeapSegmentHeader*)((char*)payloadPtr - MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader)));
 }
 
 size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size)
