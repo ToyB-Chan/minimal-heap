@@ -26,14 +26,14 @@ void MIHP_PlatformOnHeapCorruptionDetected(const MIHP_Heap* heap, MIHP_HeapCorru
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 4)
+#define NUM_ALLOCATIONS (4096 * 128)
 
-void* myptrs[NUM_ALLOCATIONS] = { 0 };
+char* myptrs[NUM_ALLOCATIONS] = { 0 };
 
 int main()
 {
 	MIHP_HeapConfig config = {0};
-	config.AllocationInitialValue = 0xbe;
+	config.AllocationInitialValue = 'f'; //0xbe;
 	config.AllocationAlignment = 16;
 	config.MinimalMemoryAreaSize = 4096 * 32;
 	config.MaximalMemoryAreaSize = 4096ull * 4096ull * 4096ull;
@@ -48,6 +48,7 @@ int main()
 		myptrs[i] = malloc(size);
 #else
 		myptrs[i] = MIHP_Allocate(&myHeap, size);
+		myptrs[i][size - 1] = '\0';
 		MIHP_ValidateHeap(&myHeap);
 #endif
 	}
@@ -74,14 +75,16 @@ int main()
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
 		volatile int n = i;
-		if (myptrs[i])
+		if (!myptrs[i])
 		{
 			size_t size = 300 + rand() % 500;
 
 #if USE_MALLOC
 			myptrs[i] = realloc(myptrs[i], size);
 #else
-			myptrs[i] = MIHP_Realloc(&myHeap, myptrs[i], size);
+			//myptrs[i] = MIHP_Realloc(&myHeap, myptrs[i], size);
+			myptrs[i] = MIHP_Allocate(&myHeap, size);
+			myptrs[i][size - 1] = '\0';
 			MIHP_ValidateHeap(&myHeap);
 
 			

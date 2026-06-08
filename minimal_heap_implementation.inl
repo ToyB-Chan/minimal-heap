@@ -103,12 +103,12 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		if (currentArea->NumOccupiedSegments == currentArea->NumSegments)
 			continue;
 
-		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
-		while (nextSegment)
+		MIHP_HeapSegmentHeaderFreePayload* nextFreeSegmentPayload = currentArea->FirstFreeSegment;
+		while (nextFreeSegmentPayload)
 		{
-			MIHP_HeapSegmentHeader* currentSegment = nextSegment;
+			MIHP_HeapSegmentHeader* currentSegment = MIHP_GetSegmentHeaderPtr(heap, nextFreeSegmentPayload);
 			MIHP_ValidateHeapSegmentHeader(heap, currentSegment);
-			nextSegment = currentSegment->NextSegment;
+			nextFreeSegmentPayload = nextFreeSegmentPayload->NextFreeSegment;
 
 			if (currentSegment->OccupiedSize != 0)
 				continue;
@@ -123,6 +123,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			else
 				continue;
 
+			MIHP_RemoveSegmentFromFreeList(heap, targetSegment);
 			targetSegment->OccupiedSize = size;
 			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(targetSegment);
 
@@ -134,7 +135,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 			MIHP_UNLOCK_HEAP(&heap->HeapLock);
 
-			void* data = (char*)targetSegment + segmentHeaderSize;
+			void* data = MIHP_GetSegmentPayloadPtr(heap, targetSegment);
 			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
 
 			return data;
@@ -181,10 +182,10 @@ void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 	MIHP_LOCK_HEAP(&heap->HeapLock);
 
-	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
-	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
+	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
 	if (newSize > segment->OccupiedSize)
 	{
 		size_t maxPayloadSize = segment->SegmentSize - segmentHeaderSize;
@@ -253,8 +254,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	MIHP_LOCK_HEAP(&heap->HeapLock);
 
-	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
-	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
 	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
@@ -277,6 +277,8 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
 
 	heap->Stats.NumTotalOccupiedSegments--;
+
+	MIHP_AddSegmentToFreeList(heap, segment);
 
 	if (area->NumOccupiedSegments == 0 && heap->Stats.NumMemoryAreas > 1)
 	{
@@ -454,6 +456,8 @@ MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* ar
 
 	area->OwningHeap->Stats.NumTotalSegments++;
 
+	MIHP_AddSegmentToFreeList(area->OwningHeap, segment);
+
 	return segment;
 }
 
@@ -463,6 +467,8 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment)
 
 	if (segment->OccupiedSize > 0)
 		return false;
+
+	MIHP_RemoveSegmentFromFreeList(segment->OwningMemoryArea->OwningHeap, segment);
 
 	segment->OwningMemoryArea->NumSegments--;
 	segment->OwningMemoryArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(segment->OwningMemoryArea);
@@ -534,6 +540,61 @@ bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegm
 	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
 
 	return true;
+}
+
+void MIHP_AddSegmentToFreeList(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
+{
+	MIHP_ASSERT(segment->OccupiedSize == 0);
+	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
+	MIHP_HeapSegmentHeaderFreePayload* list = (MIHP_HeapSegmentHeaderFreePayload*)MIHP_GetSegmentPayloadPtr(heap, segment);
+
+	list->PreviousFreeSegment = NULL;
+	list->NextFreeSegment = area->FirstFreeSegment;
+	
+	if (area->FirstFreeSegment)
+		area->FirstFreeSegment->PreviousFreeSegment = list;
+
+	area->FirstFreeSegment = list;
+	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+}
+
+void MIHP_RemoveSegmentFromFreeList(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
+{
+	MIHP_ASSERT(segment->OccupiedSize == 0);
+
+	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
+	MIHP_HeapSegmentHeaderFreePayload* list = (MIHP_HeapSegmentHeaderFreePayload*)MIHP_GetSegmentPayloadPtr(heap, segment);
+
+	if (list->PreviousFreeSegment)
+		list->PreviousFreeSegment->NextFreeSegment = list->NextFreeSegment;
+
+	if (list->NextFreeSegment)
+		list->NextFreeSegment->PreviousFreeSegment = list->PreviousFreeSegment;
+
+	if (area->FirstFreeSegment == list)
+	{
+		area->FirstFreeSegment = list->NextFreeSegment;
+		area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+	}
+
+	list->NextFreeSegment = NULL;
+	list->PreviousFreeSegment = NULL;
+}
+
+void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
+{
+	MIHP_ASSERT(heap);
+	MIHP_ASSERT(segment);
+
+	return (char*)segment + MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+}
+
+MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr)
+{
+	MIHP_ASSERT(heap);
+	MIHP_ASSERT(payloadPtr);
+
+	return (MIHP_HeapSegmentHeader*)((char*)payloadPtr - MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader)));
 }
 
 size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size)
@@ -647,5 +708,5 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 
 size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
 {
-	return heap->Config.AllocationAlignment;
+	return MIHP_MAX(heap->Config.AllocationAlignment, sizeof(MIHP_HeapSegmentHeaderFreePayload));
 }

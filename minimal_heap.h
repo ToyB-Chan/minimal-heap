@@ -69,8 +69,9 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
 	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
-	struct _MIHP_Heap*					OwningHeap;
-	struct _MIHP_HeapSegmentHeader*		FirstSegment;
+	struct _MIHP_Heap*								OwningHeap;
+	struct _MIHP_HeapSegmentHeader*					FirstSegment;
+	struct _MIHP_HeapSegmentHeaderFreePayload*		FirstFreeSegment;
 
 
 	uint32_t 			Checksum; // Checksum must be the last member !
@@ -91,6 +92,12 @@ typedef struct _MIHP_HeapSegmentHeader
 	uint32_t 			Checksum; // Checksum must be the last member !
 
 } MIHP_HeapSegmentHeader;
+
+typedef struct _MIHP_HeapSegmentHeaderFreePayload
+{
+	struct _MIHP_HeapSegmentHeaderFreePayload* PreviousFreeSegment;
+	struct _MIHP_HeapSegmentHeaderFreePayload* NextFreeSegment;
+} MIHP_HeapSegmentHeaderFreePayload;
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
@@ -133,6 +140,12 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
 
 bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
 bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
+
+void MIHP_AddSegmentToFreeList(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
+void MIHP_RemoveSegmentFromFreeList(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
+
+void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
+MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr);
 
 size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size);
 
