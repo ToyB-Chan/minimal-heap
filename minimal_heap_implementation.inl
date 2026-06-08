@@ -374,7 +374,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t
 	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinimalMemoryAreaSize);
 	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaximalMemoryAreaSize);
 
-	MIHP_HeapMemoryAreaHeader* area = MIHP_PlatformRequestMemory(effectiveSize);
+	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)MIHP_PlatformRequestMemory(effectiveSize);
 	if (area == NULL)
 		return NULL;
 
