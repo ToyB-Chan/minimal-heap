@@ -32,9 +32,9 @@
 /* */
 
 /* Hooks to be implemented by the library user */
-void* MIHP_PlatformRequestMemory(size_t minRequestedSize, size_t* outActualSize); // Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
-bool MIHP_PlatformFreeMemory(void* ptr, size_t actualSize);
-void MIHP_PlatformOnHeapCorruptionDetected(struct _MIHP_HeapCorruptionInfo info);
+void* MIHP_PlatformRequestMemory(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize); // Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
+bool MIHP_PlatformFreeMemory(const struct _MIHP_Heap* heap, void* ptr, size_t actualSize);
+void MIHP_PlatformOnHeapCorruptionDetected(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo info);
 /* */
 
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
@@ -94,7 +94,6 @@ typedef struct _MIHP_HeapSegmentHeader
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
-	const struct _MIHP_Heap*	Heap;
 	uint8_t 						Type;
 	const void* 					Ptr;
 	uint32_t 						ExpectedValue;
@@ -108,14 +107,14 @@ typedef struct _MIHP_Heap
 	MIHP_HeapMemoryAreaHeader* FirstArea;
 	MIHP_HeapMemoryAreaHeader* LastSuccessfulAllocationArea;
 
-	size_t HeapStructureAllocationSize;
-
 	MIHP_HEAP_LOCK_TYPE HeapLock;
 } MIHP_Heap;
 
 /* API Interface */
-MIHP_Heap* MIHP_CreateHeap(MIHP_HeapConfig config);
-bool MIHP_DestroyHeap(MIHP_Heap* heap, bool force);
+bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config);
+bool MIHP_IsHeapInitialized(const MIHP_Heap* heap);
+bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force);
+
 void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
 void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_Heap* heap, void* ptr);

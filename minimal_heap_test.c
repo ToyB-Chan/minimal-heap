@@ -9,19 +9,19 @@
 
 #define MIHP_ValidateHeap(x)
 
-void* MIHP_PlatformRequestMemory(size_t minRequestedSize, size_t* outActualSize)
+void* MIHP_PlatformRequestMemory(const MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize)
 {
 	*outActualSize = minRequestedSize;
 	return malloc(minRequestedSize);
 }
 
-bool MIHP_PlatformFreeMemory(void* ptr, size_t actualSize)
+bool MIHP_PlatformFreeMemory(const MIHP_Heap* heap, void* ptr, size_t actualSize)
 {
 	free(ptr);
 	return true;
 }
 
-void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info)
+void MIHP_PlatformOnHeapCorruptionDetected(const MIHP_Heap* heap, MIHP_HeapCorruptionInfo info)
 {
 	__debugbreak();
 }
@@ -37,7 +37,9 @@ int main()
 	config.AllocationAlignment = 16;
 	config.MinimalMemoryAreaSize = 4096 * 32;
 	config.MaximalMemoryAreaSize = 4096ull * 4096ull * 4096ull;
-	MIHP_Heap* myHeap = MIHP_CreateHeap(config);
+
+	MIHP_Heap myHeap = { 0 };
+	MIHP_InitializeHeap(&myHeap, config);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
@@ -45,8 +47,8 @@ int main()
 #if USE_MALLOC
 		myptrs[i] = malloc(size);
 #else
-		myptrs[i] = MIHP_Allocate(myHeap, size);
-		MIHP_ValidateHeap(myHeap);
+		myptrs[i] = MIHP_Allocate(&myHeap, size);
+		MIHP_ValidateHeap(&myHeap);
 #endif
 	}
 
@@ -59,8 +61,8 @@ int main()
 #if USE_MALLOC
 			free(myptrs[i]);
 #else
-			MIHP_Free(myHeap, myptrs[i]);
-			MIHP_ValidateHeap(myHeap);
+			MIHP_Free(&myHeap, myptrs[i]);
+			MIHP_ValidateHeap(&myHeap);
 #endif
 
 			myptrs[i] = NULL;
@@ -79,8 +81,8 @@ int main()
 #if USE_MALLOC
 			myptrs[i] = realloc(myptrs[i], size);
 #else
-			myptrs[i] = MIHP_Realloc(myHeap, myptrs[i], size);
-			MIHP_ValidateHeap(myHeap);
+			myptrs[i] = MIHP_Realloc(&myHeap, myptrs[i], size);
+			MIHP_ValidateHeap(&myHeap);
 
 			
 #endif
@@ -96,8 +98,8 @@ int main()
 #if USE_MALLOC
 			free(myptrs[i]);
 #else
-			MIHP_Free(myHeap, myptrs[i]);
-			MIHP_ValidateHeap(myHeap);
+			MIHP_Free(&myHeap, myptrs[i]);
+			MIHP_ValidateHeap(&myHeap);
 #endif
 
 			myptrs[i] = NULL;
