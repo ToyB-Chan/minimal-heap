@@ -4,107 +4,118 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_HEAP_STRUCTURE_CHECKSUM 1
-#define USE_CANARY_VALIDATION 1
+#define MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION 1
+#define MIHP_USE_CANARY_VALIDATION 1
 
-#define HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
-#define HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
-#define HEAP_CORRUPTION_TYPE_FRONT_CANARY_MISMATCH 2
-#define HEAP_CORRUPTION_TYPE_REAR_CANARY_MISMATCH 3
+#define MIHP_ZERO_OUT_MERGED_HEADERS 1
+#define MIHP_ZERO_OUT_ALLOCATIONS 1
 
-struct heap_stats
+#define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
+#define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
+#define MIHP_HEAP_CORRUPTION_TYPE_FRONT_CANARY_MISMATCH 2
+#define MIHP_HEAP_CORRUPTION_TYPE_REAR_CANARY_MISMATCH 3
+
+typedef struct _MIHP_HeapStats
 {
-	size_t 				num_memory_areas;
-	size_t 				num_total_segments;
-	size_t 				num_total_occupied_segments;
-	size_t 				total_size;
-} typedef heap_stats;
+	size_t 				NumMemoryAreas;
+	size_t 				NumTotalSegments;
+	size_t 				NumTotalOccupiedSegments;
+	size_t 				TotalSize;
+} MIHP_HeapStats;
 
-struct heap_memory_area
+// This structs size must be multiple of 8
+typedef struct _MIHP_HeapMemoryAreaHeader
 {
-	size_t 				size;
-	size_t 				num_segments;
-	size_t 				num_occupied_segments;
-	heap_memory_area* 	next_area;
-	heap_memory_area* 	previous_area;
+	size_t 							AreaSize;
+	size_t 							NumSegments;
+	size_t 							NumOccupiedSegments;
 
-#if USE_HEAP_STRUCTURE_CHECKSUM
-	uint32_t 			checksum;
-#endif
-} typedef heap_memory_area;
+	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
+	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
-struct heap_segment
+	struct _MIHP_HeapInfo*				OwningHeap;
+	struct _MIHP_HeapSegmentHeader*		FirstSegment;
+
+
+	uint32_t 			Checksum; // Checksum must be the last member !
+} MIHP_HeapMemoryAreaHeader;
+
+// This structs size must be multiple of 8
+typedef struct _MIHP_HeapSegmentHeader
 {
-	size_t 				size;
-	bool 				is_occupied;
+	size_t						SegmentSize;
+	size_t						OccupiedSize;
 
-	heap_segment* 		next_segment;
-	heap_segment* 		previous_segment;
-	heap_memory_area* 	encapsulating_memory_area;
+	struct _MIHP_HeapSegmentHeader* 		NextSegment;
+	struct _MIHP_HeapSegmentHeader* 		PreviousSegment;
+	struct _MIHP_HeapMemoryAreaHeader* 		OwningMemoryArea;
 
-#if USE_HEAP_STRUCTURE_CHECKSUM
-	uint32_t 			checksum;
-#endif
-} typedef heap_segment;
+	char _padding0[16];
 
-struct heap_corruption_info
+	uint32_t 			Checksum; // Checksum must be the last member !
+
+} MIHP_HeapSegmentHeader;
+
+typedef struct _MIHP_HeapCorruptionInfo
 {
-	uint8_t 			type;
-	void* 				ptr;
-	uint32_t 			expected_value;
-	uint32_t 			actual_value;
-} typedef heap_corruption_info;
+	uint8_t 			Type;
+	const void* 		Ptr;
+	uint32_t 			ExpectedValue;
+	uint32_t 			ActualValue;
+} MIHP_HeapCorruptionInfo;
 
 /* Hooks to be implemented by the library user */
-void* platform_request_memory_area(size_t size);
-bool platform_free_memory_area(void* ptr, size_t size);
-uint8_t platform_get_required_memory_alingment();
-void platform_heap_corruption_detected(heap_corruption_info info);
-
-size_t config_minimal_memory_area_size();
-size_t config_minimal_amount_unoccupied_bytes();
-size_t config_minimal_amount_unoccupied_continuous_bytes();
+void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alingment of size_t
+bool MIHP_PlatformFreeMemory(void* ptr, size_t size);
+void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
 /* === */
 
-uint32_t fast_memory_hasher(const void* data, size_t size)
+/* Defines to be configured by the library user */
+#define MIHP_MINIMAL_MEMORY_AREA_SIZE (4096 * 32)
+
+#define MIHP_ASSERT(Condition) do { if (Condition) break; *(volatile char*)(0x0) = 0; } while(1)
+
+#define MIHP_HEAP_LOCK_TYPE uint8_t
+#define MIHP_LOCK_HEAP(LockVariablePtr) {}
+#define MIHP_UNLOCK_HEAP(LockVarialbePtr) {}
+/* === */
+
+typedef struct _MIHP_HeapInfo
 {
-	uint32_t hash = 2166136261U;
-	const unsigned char* bytes = (const unsigned char*)data;
-	for (size_t i = 0; i < size; i++)
-	{
-		hash ^= bytes[i];
-		hash *= 16777619U;
-	}
+	MIHP_HeapStats Stats;
+	size_t AllocationAlignment;
+	MIHP_HeapMemoryAreaHeader* FirstArea;
 
-	return hash;
-}
+	MIHP_HEAP_LOCK_TYPE HeapLock;
+} MIHP_HeapInfo;
 
-uint32_t generate_heap_memory_area_checksum(const heap_memory_area* area)
-{
-	size_t checksum_size;
+/* API Interface */
+MIHP_HeapInfo* MIHP_CreateHeap(size_t initialSize, size_t allocationAlignment);
+bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force);
+void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size);
+void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize);
+void MIHP_Free(MIHP_HeapInfo* heap, void* ptr);
 
-#if USE_HEAP_STRUCTURE_CHECKSUM
-	checksum_size = sizeof(area->checksum);
-#else
-	checksum_size = 0;
-#endif
+bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr);
+void MIHP_ValidateHeap(MIHP_HeapInfo* heap);
+/* */
 
-	// Do not include the checksum itself into the new checksum
-	size_t size = sizeof(*area) - checksum_size; 
-	return fast_memory_hasher(area, size);
-}
+/* Internals */
+MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t requestedSize);
+bool MIHP_DestroyHeapMemoryArea(MIHP_HeapInfo* heap, MIHP_HeapMemoryAreaHeader* area);
 
-uint32_t generate_heap_segment_checksum(const heap_segment* segment)
-{
-	size_t checksum_size;
+MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* area, void* segmentStart, size_t size);
+bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
 
-#if USE_HEAP_STRUCTURE_CHECKSUM
-	checksum_size = sizeof(segment->checksum);
-#else
-	checksum_size = 0;
-#endif
+bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
+bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
-	// Do not include the checksum itself into the new checksum
-	size_t size = sizeof(*segment) - checksum_size; 
-	return fast_memory_hasher(segment, size);
-}
+size_t MIHP_GetHeapAlignedSize(MIHP_HeapInfo* heap, size_t size);
+
+uint32_t MIHP_HashMemoryRegion(const void* data, size_t size);
+uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_HeapMemoryAreaHeader* area);
+uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment);
+
+void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapMemoryAreaHeader* area);
+void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapSegmentHeader* segment);
+/* */
