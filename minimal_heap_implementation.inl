@@ -5,7 +5,7 @@
 
 #define MIHP_IS_PO2(Val) (Val != 0 && (Val & (Val - 1)) == 0)
 
-MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config)
+MIHP_Heap* MIHP_CreateHeap(MIHP_HeapConfig config)
 {
 	if (config.AllocationAlignment < sizeof(size_t))
 		return NULL;
@@ -13,11 +13,11 @@ MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config)
 	if (!MIHP_IS_PO2(config.AllocationAlignment))
 		return NULL;
 
-	MIHP_HeapInfo* heap = (MIHP_HeapInfo*)MIHP_PlatformRequestMemory(sizeof(MIHP_HeapInfo));
+	MIHP_Heap* heap = (MIHP_Heap*)MIHP_PlatformRequestMemory(sizeof(MIHP_Heap));
 	if (heap == NULL)
 		return NULL;
 
-	MIHP_MEMSET(heap, sizeof(MIHP_HeapInfo), 0);
+	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
 
 	heap->Config = config;
 
@@ -25,7 +25,7 @@ MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config)
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
 	if (heap->FirstArea == NULL)
 	{
-		MIHP_PlatformFreeMemory(heap, sizeof(MIHP_HeapInfo));
+		MIHP_PlatformFreeMemory(heap, sizeof(MIHP_Heap));
 		return NULL;
 	}
 
@@ -34,7 +34,7 @@ MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config)
 	return heap;
 }
 
-bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force)
+bool MIHP_DestroyHeap(MIHP_Heap* heap, bool force)
 {
 	if (heap == NULL)
 		return false;
@@ -52,11 +52,11 @@ bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force)
 		MIHP_DestroyHeapMemoryArea(heap, currentArea);
 	}
 
-	MIHP_PlatformFreeMemory(heap, sizeof(MIHP_HeapInfo));
+	MIHP_PlatformFreeMemory(heap, sizeof(MIHP_Heap));
 	return true;
 }
 
-void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size)
+void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 {
 	if (heap == NULL)
 		return NULL;
@@ -152,7 +152,7 @@ void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size)
 	return MIHP_Allocate(heap, size);
 }
 
-void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize)
+void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
 {
 	if (newSize == 0)
 	{
@@ -216,7 +216,11 @@ void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize)
 		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + minimumPayloadSize)
 		{
 			size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
-			MIHP_SplitHeapSegment(segment, newSplitSegmentSize, NULL);
+
+			MIHP_HeapSegmentHeader* newSpittedSegment = NULL;
+			MIHP_SplitHeapSegment(segment, newSplitSegmentSize, &newSpittedSegment);
+			if (newSpittedSegment && newSpittedSegment->NextSegment)
+				MIHP_MergeHeapSegments(newSpittedSegment, newSpittedSegment->NextSegment);
 		}
 
 		MIHP_UNLOCK_HEAP(&heap->HeapLock);
@@ -227,7 +231,7 @@ void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize)
 	return ptr;
 }
 
-bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr)
+bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 {
 	if (heap == NULL)
 		return false;
@@ -304,7 +308,7 @@ bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr)
 	return true;
 }
 
-bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr)
+bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 {
 	if (heap == NULL)
 		return false;
@@ -333,7 +337,7 @@ bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr)
 	return false;
 }
 
-size_t MIHP_GetPtrAllocationSize(MIHP_HeapInfo* heap, void* ptr)
+size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr)
 {
 	if (!MIHP_IsPointerInHeap(heap, ptr))
 		return 0;
@@ -347,7 +351,7 @@ size_t MIHP_GetPtrAllocationSize(MIHP_HeapInfo* heap, void* ptr)
 	return segment->OccupiedSize;
 }
 
-void MIHP_ValidateHeap(MIHP_HeapInfo* heap)
+void MIHP_ValidateHeap(MIHP_Heap* heap)
 {
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea)
@@ -366,7 +370,7 @@ void MIHP_ValidateHeap(MIHP_HeapInfo* heap)
 	}
 }
 
-MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t requestedSize)
+MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t requestedSize)
 {
 	MIHP_ASSERT(heap);
 
@@ -394,7 +398,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t
 	return area;
 }
 
-bool MIHP_DestroyHeapMemoryArea(MIHP_HeapInfo* heap, MIHP_HeapMemoryAreaHeader* memoryArea)
+bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* memoryArea)
 {
 	MIHP_ASSERT(heap);
 	MIHP_ASSERT(memoryArea);
@@ -516,7 +520,7 @@ bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegm
 	return true;
 }
 
-size_t MIHP_GetHeapAlignedSize(const MIHP_HeapInfo* heap, size_t size)
+size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size)
 {
 	return (size + (heap->Config.AllocationAlignment - 1)) & ~(heap->Config.AllocationAlignment - 1);
 }
@@ -573,7 +577,7 @@ uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment)
 #endif
 }
 
-void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_HeapMemoryAreaHeader* area)
+void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area)
 {
 	uint32_t newChecksum;
 
@@ -600,7 +604,7 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_Hea
 	}
 }
 
-void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSegmentHeader* segment)
+void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmentHeader* segment)
 {
 	uint32_t newChecksum;
 

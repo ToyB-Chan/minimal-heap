@@ -1,5 +1,7 @@
+/* Version 1.2 */
 
-/* Version 1.1 */
+#ifndef __MINIMAL_HEAP_H__
+#define __MINIMAL_HEAP_H__
 
 #include <stddef.h>
 #include <stdint.h>
@@ -12,9 +14,6 @@
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE 0
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER 1
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM 2
-
-#ifndef __MINIMAL_HEAP_H__
-#define __MINIMAL_HEAP_H__
 
 /* Defines to be configured by the library user */
 #ifndef MIHP_HEAP_STRUCTURE_VALIDATION_TYPE
@@ -72,7 +71,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
 	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
-	struct _MIHP_HeapInfo*				OwningHeap;
+	struct _MIHP_Heap*					OwningHeap;
 	struct _MIHP_HeapSegmentHeader*		FirstSegment;
 
 
@@ -97,14 +96,14 @@ typedef struct _MIHP_HeapSegmentHeader
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
-	const struct _MIHP_HeapInfo*	Heap;
+	const struct _MIHP_Heap*	Heap;
 	uint8_t 						Type;
 	const void* 					Ptr;
 	uint32_t 						ExpectedValue;
 	uint32_t 						ActualValue;
 } MIHP_HeapCorruptionInfo;
 
-typedef struct _MIHP_HeapInfo
+typedef struct _MIHP_Heap
 {
 	MIHP_HeapConfig Config;
 	MIHP_HeapStats Stats;
@@ -112,23 +111,23 @@ typedef struct _MIHP_HeapInfo
 	MIHP_HeapMemoryAreaHeader* LastSuccessfulAllocationArea;
 
 	MIHP_HEAP_LOCK_TYPE HeapLock;
-} MIHP_HeapInfo;
+} MIHP_Heap;
 
 /* API Interface */
-MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config);
-bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force);
-void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size);
-void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize);
-bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr);
+MIHP_Heap* MIHP_CreateHeap(MIHP_HeapConfig config);
+bool MIHP_DestroyHeap(MIHP_Heap* heap, bool force);
+void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
+void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize);
+bool MIHP_Free(MIHP_Heap* heap, void* ptr);
 
-bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr);
-size_t MIHP_GetPtrAllocationSize(MIHP_HeapInfo* heap, void* ptr);
-void MIHP_ValidateHeap(MIHP_HeapInfo* heap);
+bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
+size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr);
+void MIHP_ValidateHeap(MIHP_Heap* heap);
 /* */
 
 /* Internals */
-MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t requestedSize);
-bool MIHP_DestroyHeapMemoryArea(MIHP_HeapInfo* heap, MIHP_HeapMemoryAreaHeader* area);
+MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t requestedSize);
+bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* area);
 
 MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* area, void* segmentStart, size_t size);
 bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
@@ -136,14 +135,14 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
 bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
 bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
-size_t MIHP_GetHeapAlignedSize(const MIHP_HeapInfo* heap, size_t size);
+size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size);
 
 uint32_t MIHP_HashMemoryRegion(const void* data, size_t size);
 uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_HeapMemoryAreaHeader* area);
 uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment);
 
-void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_HeapMemoryAreaHeader* area);
-void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSegmentHeader* segment);
+void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area);
+void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmentHeader* segment);
 /* */
 
 #endif

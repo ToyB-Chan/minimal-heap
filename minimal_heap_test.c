@@ -36,7 +36,7 @@ int main()
 	config.AllocationAlignment = 16;
 	config.MinimalMemoryAreaSize = 4096 * 32;
 	config.MaximalMemoryAreaSize = 4096ull * 4096ull * 4096ull;
-	MIHP_HeapInfo* myHeap = MIHP_CreateHeap(config);
+	MIHP_Heap* myHeap = MIHP_CreateHeap(config);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
