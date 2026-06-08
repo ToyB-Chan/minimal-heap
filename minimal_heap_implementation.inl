@@ -10,6 +10,9 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 	if (MIHP_IsHeapInitialized(heap))
 		return false;
 
+	if (heap == NULL)
+		return false;
+
 	if (config.AllocationAlignment < sizeof(size_t))
 		return false;
 
