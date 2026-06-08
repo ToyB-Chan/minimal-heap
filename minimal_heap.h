@@ -45,8 +45,8 @@ typedef struct _MIHP_HeapConfig
 {
 	size_t			AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
 
-	size_t			MinimalMemoryAreaSize;		// Must be a multiple of AllocationAlingment
-	size_t			MaximalMemoryAreaSize;		// Must be a multiple of AllocationAlingment
+	size_t			MinimalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
+	size_t			MaximalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
 	
 	char			AllocationInitialValue;
 } MIHP_HeapConfig;
