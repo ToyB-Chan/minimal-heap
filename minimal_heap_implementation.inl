@@ -108,10 +108,9 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 				continue;
 
 			size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
-			size_t minimalPayloadSize = heap->Config.AllocationAlignment;
 			MIHP_HeapSegmentHeader* targetSegment = NULL;
 
-			if (currentSegment->SegmentSize >= 2 * segmentHeaderSize + size + minimalPayloadSize)
+			if (currentSegment->SegmentSize >= 2 * segmentHeaderSize + size + MIHP_GetMinimalPayloadSize(heap))
 				MIHP_SplitHeapSegment(currentSegment, segmentHeaderSize + size, &targetSegment);
 			else if (currentSegment->SegmentSize >= segmentHeaderSize + size)
 				targetSegment = currentSegment;
@@ -217,8 +216,7 @@ void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
 		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
 
 		size_t alignedNewSize = MIHP_GetHeapAlignedSize(heap, newSize);
-		size_t minimumPayloadSize = heap->Config.AllocationAlignment;
-		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + minimumPayloadSize)
+		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + MIHP_GetMinimalPayloadSize(heap))
 		{
 			size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
 
@@ -631,4 +629,9 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 
 		MIHP_PlatformOnHeapCorruptionDetected(corruptionInfo);
 	}
+}
+
+size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
+{
+	return heap->Config.AllocationAlignment;
 }
