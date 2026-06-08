@@ -485,12 +485,10 @@ bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegm
 
 	sourceSegment->NextSegment = newSegment;
 
-	if (outNewSegment)
-		*outNewSegment = newSegment;
-
 	newSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(newSegment);
 	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
 
+	*outNewSegment = newSegment;
 	return true;
 }
 
