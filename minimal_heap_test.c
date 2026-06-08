@@ -21,7 +21,7 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info)
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 128)
+#define NUM_ALLOCATIONS (4096 * 32)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
