@@ -7,6 +7,8 @@
 
 #define USE_MALLOC 0
 
+//#define MIHP_ValidateHeap()
+
 void* MIHP_PlatformRequestMemory(size_t size)
 {
 	return malloc(size);
