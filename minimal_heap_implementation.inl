@@ -262,6 +262,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 		corruptionInfo.Ptr = ptr;
 
 		MIHP_PlatformOnHeapCorruptionDetected(corruptionInfo);
+		return false;
 	}
 
 	segment->OccupiedSize = 0;
