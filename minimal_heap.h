@@ -102,7 +102,7 @@ MIHP_HeapInfo* MIHP_CreateHeap(MIHP_HeapConfig config);
 bool MIHP_DestroyHeap(MIHP_HeapInfo* heap, bool force);
 void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size);
 void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize);
-void MIHP_Free(MIHP_HeapInfo* heap, void* ptr);
+bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr);
 
 bool MIHP_IsPointerInHeap(MIHP_HeapInfo* heap, void* ptr);
 void MIHP_ValidateHeap(MIHP_HeapInfo* heap);
