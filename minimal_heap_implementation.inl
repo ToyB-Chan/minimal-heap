@@ -662,5 +662,5 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 
 size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
 {
-	return heap->Config.AllocationAlignment;
+	return heap->Config.AllocationAlignment * 2;
 }
