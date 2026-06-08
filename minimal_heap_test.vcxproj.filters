@@ -18,13 +18,15 @@
     <ClCompile Include="minimal_heap_test.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="minimal_heap.c">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minimal_heap.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="minimal_heap_implementation.inl">
+      <Filter>Headerdateien</Filter>
+    </None>
   </ItemGroup>
 </Project>

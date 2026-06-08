@@ -1,23 +1,35 @@
-#pragma once
 
-/* Version 1.0 */
+/* Version 1.1 */
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifndef MIHP_IMPLEMENTATION
+	#define MIHP_IMPLEMENTATION 0
+#endif
+
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE 0
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER 1
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM 2
 
+#ifndef __MINIMAL_HEAP_H__
+#define __MINIMAL_HEAP_H__
+
 /* Defines to be configured by the library user */
-#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+#ifndef MIHP_HEAP_STRUCTURE_VALIDATION_TYPE
+	#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+#endif
 
-#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
+#ifndef MIHP_ASSERT
+	#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
+#endif
 
-#define MIHP_HEAP_LOCK_TYPE uint8_t // Does NOT have to be reentred safe
-#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
-#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
+#ifndef MIHP_HEAP_LOCK_TYPE
+	#define MIHP_HEAP_LOCK_TYPE bool // Does NOT have to be reentred safe
+	#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
+	#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
+#endif
 /* */
 
 /* Hooks to be implemented by the library user */
@@ -133,3 +145,9 @@ uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment)
 void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_HeapMemoryAreaHeader* area);
 void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSegmentHeader* segment);
 /* */
+
+#endif
+
+#if MIHP_IMPLEMENTATION
+	#include "minimal_heap_implementation.inl"
+#endif

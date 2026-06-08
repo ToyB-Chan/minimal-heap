@@ -1,5 +1,3 @@
-#include "minimal_heap.h"
-
 #define MIHP_MIN(A, B) (A) < (B) ? (A) : (B)
 #define MIHP_MAX(A, B) (A) > (B) ? (A) : (B)
 

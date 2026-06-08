@@ -1,4 +1,6 @@
+#define MIHP_IMPLEMENTATION 1
 #include "minimal_heap.h"
+
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
