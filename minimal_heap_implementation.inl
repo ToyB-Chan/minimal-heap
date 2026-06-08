@@ -7,10 +7,10 @@
 
 bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 {
-	if (MIHP_IsHeapInitialized(heap))
+	if (heap == NULL)
 		return false;
 
-	if (heap == NULL)
+	if (MIHP_IsHeapInitialized(heap))
 		return false;
 
 	if (config.AllocationAlignment < sizeof(size_t))
@@ -45,10 +45,10 @@ bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
 
 bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 {
-	if (!MIHP_IsHeapInitialized(heap))
+	if (heap == NULL)
 		return false;
 
-	if (heap == NULL)
+	if (!MIHP_IsHeapInitialized(heap))
 		return false;
 
 	if (!force && heap->Stats.NumTotalOccupiedSegments > 0)
