@@ -4,8 +4,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION 1
-#define MIHP_USE_CANARY_VALIDATION 1
+#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE 0
+#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER 1
+#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM 2
+
+#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
 
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
 #define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
@@ -80,13 +83,11 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info);
 /* === */
 
 /* Defines to be configured by the library user */
-#define MIHP_MINIMAL_MEMORY_AREA_SIZE (4096 * 32)
-
 #define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
 
-#define MIHP_HEAP_LOCK_TYPE uint8_t
-#define MIHP_LOCK_HEAP(LockVariablePtr) {}
-#define MIHP_UNLOCK_HEAP(LockVarialbePtr) {}
+#define MIHP_HEAP_LOCK_TYPE uint8_t // Does NOT have to be reentred safe
+#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
+#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
 /* === */
 
 typedef struct _MIHP_HeapInfo

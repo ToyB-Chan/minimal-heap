@@ -21,7 +21,7 @@ void MIHP_PlatformOnHeapCorruptionDetected(MIHP_HeapCorruptionInfo info)
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 32)
+#define NUM_ALLOCATIONS (4096 * 4)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
@@ -67,15 +67,17 @@ int main()
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
 		volatile int n = i;
-		if (!myptrs[i])
+		if (myptrs[i])
 		{
-			size_t size = 541 + rand() % 2564;
+			size_t size = 300 + rand() % 500;
 
 #if USE_MALLOC
-			myptrs[i] = malloc(size);
+			myptrs[i] = realloc(myptrs[i], size);
 #else
-			myptrs[i] = MIHP_Allocate(myHeap, size);
+			myptrs[i] = MIHP_Realloc(myHeap, myptrs[i], size);
 			MIHP_ValidateHeap(myHeap);
+
+			
 #endif
 		}
 	}

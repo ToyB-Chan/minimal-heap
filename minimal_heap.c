@@ -156,7 +156,77 @@ void* MIHP_Allocate(MIHP_HeapInfo* heap, size_t size)
 
 void* MIHP_Realloc(MIHP_HeapInfo* heap, void* ptr, size_t newSize)
 {
-	return NULL;
+	if (newSize == 0)
+	{
+		MIHP_Free(heap, ptr);
+		return NULL;
+	}
+
+	if (heap == NULL)
+		return NULL;
+
+	if (ptr == NULL)
+		return MIHP_Allocate(heap, newSize);
+
+	if (!MIHP_IsPointerInHeap(heap, ptr))
+		return NULL;
+
+	MIHP_LOCK_HEAP(&heap->HeapLock);
+
+	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
+	MIHP_ValidateHeapSegmentHeader(heap, segment);
+
+	if (newSize > segment->OccupiedSize)
+	{
+		size_t maxPayloadSize = segment->SegmentSize - segmentHeaderSize;
+		if (newSize <= maxPayloadSize)
+		{
+			MIHP_MEMSET((char*)ptr + segment->OccupiedSize, newSize - segment->OccupiedSize, heap->Config.AllocationInitialValue);
+			segment->OccupiedSize = newSize;
+			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
+
+			MIHP_UNLOCK_HEAP(&heap->HeapLock);
+			return ptr;
+		}
+
+		if (segment->NextSegment && MIHP_MergeHeapSegments(segment, segment->NextSegment))
+		{
+			MIHP_UNLOCK_HEAP(&heap->HeapLock);
+			return MIHP_Realloc(heap, ptr, newSize);
+		}
+
+		MIHP_UNLOCK_HEAP(&heap->HeapLock);
+
+		void* newPtr = MIHP_Allocate(heap, newSize);
+		if (!newPtr)
+			return NULL;
+
+		for (size_t i = 0; i < segment->OccupiedSize; i++)
+			((char*)newPtr)[i] = ((char*)ptr)[i];
+
+		MIHP_Free(heap, ptr);
+		return newPtr;
+	}
+	else if (newSize < segment->OccupiedSize)
+	{
+		segment->OccupiedSize = newSize;
+		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
+
+		size_t alignedNewSize = MIHP_GetHeapAlignedSize(heap, newSize);
+		size_t minimumPayloadSize = heap->Config.AllocationAlignment;
+		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + minimumPayloadSize)
+		{
+			size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
+			MIHP_SplitHeapSegment(segment, newSplitSegmentSize, NULL);
+		}
+
+		MIHP_UNLOCK_HEAP(&heap->HeapLock);
+		return ptr;
+	}
+
+	MIHP_UNLOCK_HEAP(&heap->HeapLock);
+	return ptr;
 }
 
 bool MIHP_Free(MIHP_HeapInfo* heap, void* ptr)
@@ -302,7 +372,9 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_HeapInfo* heap, size_t
 {
 	MIHP_ASSERT(heap);
 
-	size_t effectiveSize = ((requestedSize + MIHP_MINIMAL_MEMORY_AREA_SIZE - 1) / MIHP_MINIMAL_MEMORY_AREA_SIZE) * MIHP_MINIMAL_MEMORY_AREA_SIZE;
+	size_t effectiveSize = ((requestedSize + heap->Config.MinimalMemoryAreaSize - 1) / heap->Config.MinimalMemoryAreaSize) * heap->Config.MinimalMemoryAreaSize;
+	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinimalMemoryAreaSize);
+	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaximalMemoryAreaSize);
 
 	MIHP_HeapMemoryAreaHeader* area = MIHP_PlatformRequestMemory(effectiveSize);
 	if (area == NULL)
@@ -358,6 +430,8 @@ MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* ar
 	segment->Checksum = ~0;
 
 	area->NumSegments++;
+	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+
 	area->OwningHeap->Stats.NumTotalSegments++;
 
 	return segment;
@@ -464,37 +538,56 @@ uint32_t MIHP_HashMemoryRegion(const void* data, size_t size)
 
 uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_HeapMemoryAreaHeader* area)
 {
-#if !MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION
+
+#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
 	return 0;
-#endif
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
+	return 0xAADEADAA;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
 
 	MIHP_ASSERT(area);
 
 	// Do not include the checksum itself into the new checksum
 	size_t size = offsetof(MIHP_HeapMemoryAreaHeader, Checksum);
 	return MIHP_HashMemoryRegion(area, size);
+
+#else
+	#error "Invalid heap structure validation type"
+#endif
 }
 
 uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment)
 {
-#if !MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION
+#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
 	return 0;
-#endif
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
+	return 0x55DEAD55;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
 
 	MIHP_ASSERT(segment);
 
 	// Do not include the checksum itself into the new checksum
 	size_t size = offsetof(MIHP_HeapSegmentHeader, Checksum);
 	return MIHP_HashMemoryRegion(segment, size);
+
+#else
+	#error "Invalid heap structure validation type"
+#endif
 }
 
 void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_HeapMemoryAreaHeader* area)
 {
-#if !MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION
-	return;
-#endif
+	uint32_t newChecksum;
 
-	uint32_t newChecksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
+	return;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
+	newChecksum = 0xAADEADAA;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+	newChecksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+#else
+	#error "Invalid heap structure validation type"
+#endif
 
 	if (area->Checksum != newChecksum)
 	{
@@ -511,11 +604,17 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_HeapInfo* heap, const MIHP_Hea
 
 void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSegmentHeader* segment)
 {
-#if !MIHP_USE_HEAP_STRUCTURE_CHECKSUM_VALIDATION
-	return;
-#endif
+	uint32_t newChecksum;
 
-	uint32_t newChecksum = MIHP_GenerateHeapSegmentChecksum(segment);
+#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
+	return;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
+	newChecksum = 0x55DEAD55;
+#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+	newChecksum = MIHP_GenerateHeapSegmentChecksum(segment);
+#else
+	#error "Invalid heap structure validation type"
+#endif
 
 	if (segment->Checksum != newChecksum)
 	{
@@ -529,4 +628,3 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_HeapInfo* heap, const MIHP_HeapSe
 		MIHP_PlatformOnHeapCorruptionDetected(corruptionInfo);
 	}
 }
-
