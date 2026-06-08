@@ -38,7 +38,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	size_t 							NumOccupiedSegments;
 
 	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
-	//struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
+	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
 	struct _MIHP_HeapInfo*				OwningHeap;
 	struct _MIHP_HeapSegmentHeader*		FirstSegment;
