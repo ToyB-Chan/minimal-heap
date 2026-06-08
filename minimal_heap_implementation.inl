@@ -254,6 +254,16 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
 	MIHP_ValidateHeapMemoryAreaHeader(heap, area);
 
+	if (segment->OccupiedSize == 0)
+	{
+		MIHP_HeapCorruptionInfo corruptionInfo = {0};
+		corruptionInfo.Heap = heap;
+		corruptionInfo.Type = MIHP_HEAP_CORRUPTION_TYPE_DOUBLE_FREE;
+		corruptionInfo.Ptr = ptr;
+
+		MIHP_PlatformOnHeapCorruptionDetected(corruptionInfo);
+	}
+
 	segment->OccupiedSize = 0;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
 	
