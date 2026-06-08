@@ -32,8 +32,8 @@
 /* */
 
 /* Hooks to be implemented by the library user */
-void* MIHP_PlatformRequestMemory(size_t size); // Alignment must at least be alignment of size_t
-bool MIHP_PlatformFreeMemory(void* ptr, size_t size);
+void* MIHP_PlatformRequestMemory(size_t minRequestedSize, size_t* outActualSize); // Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
+bool MIHP_PlatformFreeMemory(void* ptr, size_t actualSize);
 void MIHP_PlatformOnHeapCorruptionDetected(struct _MIHP_HeapCorruptionInfo info);
 /* */
 
@@ -108,6 +108,8 @@ typedef struct _MIHP_Heap
 	MIHP_HeapMemoryAreaHeader* FirstArea;
 	MIHP_HeapMemoryAreaHeader* LastSuccessfulAllocationArea;
 
+	size_t HeapStructureAllocationSize;
+
 	MIHP_HEAP_LOCK_TYPE HeapLock;
 } MIHP_Heap;
 
@@ -130,7 +132,7 @@ bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* area
 MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* area, void* segmentStart, size_t size);
 bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
 
-bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
+bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** optOutNewSegment);
 bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
 size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size);

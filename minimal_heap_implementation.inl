@@ -19,19 +19,22 @@ MIHP_Heap* MIHP_CreateHeap(MIHP_HeapConfig config)
 	if (config.MaximalMemoryAreaSize % config.AllocationAlignment != 0)
 		return NULL;
 
-	MIHP_Heap* heap = (MIHP_Heap*)MIHP_PlatformRequestMemory(sizeof(MIHP_Heap));
+	size_t actualHeapStructAllocSize = 0;
+	MIHP_Heap* heap = (MIHP_Heap*)MIHP_PlatformRequestMemory(sizeof(MIHP_Heap), &actualHeapStructAllocSize);
 	if (heap == NULL)
 		return NULL;
 
+	MIHP_ASSERT(actualHeapStructAllocSize >= sizeof(MIHP_Heap));
 	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
 
 	heap->Config = config;
-
-	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinimalMemoryAreaSize);
+	heap->HeapStructureAllocationSize = actualHeapStructAllocSize;
+	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, actualHeapStructAllocSize);
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
+
 	if (heap->FirstArea == NULL)
 	{
-		MIHP_PlatformFreeMemory(heap, sizeof(MIHP_Heap));
+		MIHP_PlatformFreeMemory(heap, heap->HeapStructureAllocationSize);
 		return NULL;
 	}
 
@@ -58,7 +61,7 @@ bool MIHP_DestroyHeap(MIHP_Heap* heap, bool force)
 		MIHP_DestroyHeapMemoryArea(heap, currentArea);
 	}
 
-	MIHP_PlatformFreeMemory(heap, sizeof(MIHP_Heap));
+	MIHP_PlatformFreeMemory(heap, heap->HeapStructureAllocationSize);
 	return true;
 }
 
@@ -389,13 +392,15 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinimalMemoryAreaSize);
 	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaximalMemoryAreaSize);
 
-	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)MIHP_PlatformRequestMemory(effectiveSize);
+	size_t actualSize = 0;
+	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)MIHP_PlatformRequestMemory(effectiveSize, &actualSize);
 	if (area == NULL)
 		return NULL;
 
+	MIHP_ASSERT(actualSize >= effectiveSize);
 	MIHP_MEMSET(area, sizeof(MIHP_HeapMemoryAreaHeader), 0);
 
-	area->AreaSize = effectiveSize;
+	area->AreaSize = actualSize;
 	area->OwningHeap = heap;
 	area->Checksum = ~0;
 
@@ -404,7 +409,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 	area->FirstSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(area->FirstSegment);
 
 	heap->Stats.NumMemoryAreas++;
-	heap->Stats.TotalSize += effectiveSize;
+	heap->Stats.TotalSize += area->AreaSize;
 
 	return area;
 }
@@ -466,7 +471,7 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment)
 	return true;
 }
 
-bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentMinSize, MIHP_HeapSegmentHeader** outNewSegment)
+bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentMinSize, MIHP_HeapSegmentHeader** optOutNewSegment)
 {
 	MIHP_ASSERT(sourceSegment);
 
@@ -496,8 +501,8 @@ bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegm
 
 	sourceSegment->NextSegment = newSegment;
 
-	if (outNewSegment)
-		*outNewSegment = newSegment;
+	if (optOutNewSegment)
+		*optOutNewSegment = newSegment;
 
 	newSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(newSegment);
 	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
