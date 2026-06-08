@@ -44,10 +44,10 @@ void MIHP_PlatformOnHeapCorruptionDetected(struct _MIHP_HeapCorruptionInfo info)
 
 typedef struct _MIHP_HeapConfig
 {
-	size_t			AllocationAlignment;
+	size_t			AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
 
-	size_t			MinimalMemoryAreaSize;
-	size_t			MaximalMemoryAreaSize;
+	size_t			MinimalMemoryAreaSize;		// Must be a multiple of AllocationAlingment
+	size_t			MaximalMemoryAreaSize;		// Must be a multiple of AllocationAlingment
 	
 	char			AllocationInitialValue;
 } MIHP_HeapConfig;

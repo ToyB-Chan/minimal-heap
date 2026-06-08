@@ -13,6 +13,12 @@ MIHP_Heap* MIHP_CreateHeap(MIHP_HeapConfig config)
 	if (!MIHP_IS_PO2(config.AllocationAlignment))
 		return NULL;
 
+	if (config.MinimalMemoryAreaSize % config.AllocationAlignment != 0)
+		return NULL;
+
+	if (config.MaximalMemoryAreaSize % config.AllocationAlignment != 0)
+		return NULL;
+
 	MIHP_Heap* heap = (MIHP_Heap*)MIHP_PlatformRequestMemory(sizeof(MIHP_Heap));
 	if (heap == NULL)
 		return NULL;
