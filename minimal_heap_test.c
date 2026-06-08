@@ -7,7 +7,7 @@
 
 #define USE_MALLOC 0
 
-#define MIHP_ValidateHeap()
+#define MIHP_ValidateHeap(x)
 
 void* MIHP_PlatformRequestMemory(size_t minRequestedSize, size_t* outActualSize)
 {
