@@ -119,7 +119,6 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(currentArea);
 
 			heap->Stats.NumTotalOccupiedSegments++;
-			heap->Stats.TotalOccupiedSize += targetSegment->OccupiedSize;
 			heap->LastSuccessfulAllocationArea = currentArea;
 
 			MIHP_UNLOCK_HEAP(&heap->HeapLock);
@@ -251,8 +250,6 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
 	MIHP_ValidateHeapMemoryAreaHeader(heap, area);
 
-	size_t occupiedSize = segment->OccupiedSize;
-
 	segment->OccupiedSize = 0;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
 	
@@ -260,7 +257,6 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
 
 	heap->Stats.NumTotalOccupiedSegments--;
-	heap->Stats.TotalOccupiedSize -= occupiedSize;
 
 	if (area->NumOccupiedSegments == 0 && heap->Stats.NumMemoryAreas > 1)
 	{

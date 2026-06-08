@@ -58,7 +58,6 @@ typedef struct _MIHP_HeapStats
 	size_t 				NumTotalSegments;
 	size_t 				NumTotalOccupiedSegments;
 	size_t 				TotalSize;
-	size_t				TotalOccupiedSize;
 } MIHP_HeapStats;
 
 // This structs size must be multiple of 8
