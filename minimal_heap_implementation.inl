@@ -471,7 +471,7 @@ bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment)
 	return true;
 }
 
-bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentMinSize, MIHP_HeapSegmentHeader** optOutNewSegment)
+bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentMinSize, MIHP_HeapSegmentHeader** outNewSegment)
 {
 	MIHP_ASSERT(sourceSegment);
 
