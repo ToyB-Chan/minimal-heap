@@ -150,7 +150,10 @@ AllocateNewArea:
 
 	MIHP_HeapMemoryAreaHeader* newArea = MIHP_CreateHeapMemoryArea(heap, newAreaSize);
 	if (newArea == NULL)
+	{
+		MIHP_UNLOCK_HEAP(&heap->HeapLock);
 		return NULL;
+	}
 
 	newArea->NextArea = heap->FirstArea;
 	heap->FirstArea->PreviousArea = newArea;
@@ -164,7 +167,7 @@ AllocateNewArea:
 	return MIHP_Allocate(heap, size);
 }
 
-void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
+void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 {
 	if (newSize == 0)
 	{
@@ -203,7 +206,7 @@ void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize)
 		if (segment->NextSegment && MIHP_MergeHeapSegments(segment, segment->NextSegment))
 		{
 			MIHP_UNLOCK_HEAP(&heap->HeapLock);
-			return MIHP_Realloc(heap, ptr, newSize);
+			return MIHP_Reallocate(heap, ptr, newSize);
 		}
 
 		MIHP_UNLOCK_HEAP(&heap->HeapLock);

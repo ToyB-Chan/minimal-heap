@@ -81,7 +81,7 @@ int main()
 #if USE_MALLOC
 			myptrs[i] = realloc(myptrs[i], size);
 #else
-			myptrs[i] = MIHP_Realloc(&myHeap, myptrs[i], size);
+			myptrs[i] = MIHP_Reallocate(&myHeap, myptrs[i], size);
 			MIHP_ValidateHeap(&myHeap);
 
 			

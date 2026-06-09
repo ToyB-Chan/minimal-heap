@@ -124,7 +124,7 @@ bool MIHP_IsHeapInitialized(const MIHP_Heap* heap);
 bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force);
 
 void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
-void* MIHP_Realloc(MIHP_Heap* heap, void* ptr, size_t newSize);
+void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_Heap* heap, void* ptr);
 
 bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
