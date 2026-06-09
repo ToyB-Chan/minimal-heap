@@ -108,7 +108,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
 		while (nextSegment)
 		{
-			if (numTraversedSegments * 100 > heap->Stats.NumTotalSegments * 50)
+			if (numTraversedSegments * 100 > heap->Stats.NumTotalSegments * 80)
 				goto AllocateNewArea;
 
 			numTraversedSegments++;
@@ -149,7 +149,6 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	}
 
 AllocateNewArea:
-
 	size_t newAreaSize = heap->Stats.TotalSize;
 
 	while (newAreaSize < size)
@@ -299,8 +298,6 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 				prevArea->NextArea = nextArea;
 				prevArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(prevArea);
 			}
-			else
-				heap->FirstArea = nextArea;
 
 			if (nextArea)
 			{
@@ -308,6 +305,12 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 				nextArea->PreviousArea = prevArea;
 				nextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(nextArea);
 			}
+
+			if (heap->FirstArea == area)
+				heap->FirstArea = nextArea;
+
+			if (heap->LastSuccessfulAllocationArea == area)
+				heap->LastSuccessfulAllocationArea = nextArea;
 
 			MIHP_UNLOCK_HEAP(&heap->HeapLock);
 			return true;
