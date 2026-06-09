@@ -108,8 +108,9 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
 		while (nextSegment)
 		{
-			if (numTraversedSegments * 100 > heap->Stats.NumTotalSegments * 80)
-				goto AllocateNewArea;
+			if (numTraversedSegments > MIHP_MIN_TRAVERSELS_BEFORE_EXPANSION)
+				if (numTraversedSegments * 100 > heap->Stats.NumTotalOccupiedSegments * MIHP_MIN_EXPANSION_TRAVERSEL_OCCUPIED_INT_PERCENT)
+					goto AllocateNewArea;
 
 			numTraversedSegments++;
 
