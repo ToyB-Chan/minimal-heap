@@ -3,6 +3,24 @@
 
 #define MIHP_IS_PO2(Val) (Val != 0 && (Val & (Val - 1)) == 0)
 
+MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
+{
+	MIHP_HeapConfig cfg = { 0 };
+
+	cfg.MinMemoryAreaSize = 4096 * 32;
+	cfg.MaxMemoryAreaSize = 4096 * 4096 * 8;
+
+	cfg.MinTotalTraversalsBeforeHeapExpansion = 10'000;
+	cfg.MinHeapTraversalPercentToExpand = 80;
+
+	cfg.AllocationAlignment = 16;
+	cfg.AllocationInitialValue = 0xbe;
+
+	cfg.HeapValidationMode = MIHP_HVM_MagicNumber;
+
+	return cfg;
+}
+
 bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 {
 	if (heap == NULL)
@@ -17,16 +35,22 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 	if (config.PlatformFreeMemoryFn == NULL)
 		return false;
 
+	if (config.MinTotalTraversalsBeforeHeapExpansion < 10)
+		return false;
+
+	if (config.MinHeapTraversalPercentToExpand > 100)
+		return false;
+
 	if (config.AllocationAlignment < sizeof(size_t))
 		return false;
 
 	if (!MIHP_IS_PO2(config.AllocationAlignment))
 		return false;
 
-	if (config.MinimalMemoryAreaSize % config.AllocationAlignment != 0)
+	if (config.MinMemoryAreaSize % config.AllocationAlignment != 0)
 		return false;
 
-	if (config.MaximalMemoryAreaSize % config.AllocationAlignment != 0)
+	if (config.MaxMemoryAreaSize % config.AllocationAlignment != 0)
 		return false;
 
 	if (config.HeapLock != NULL)
@@ -41,10 +65,10 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
 
 	heap->Config = config;
-	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinimalMemoryAreaSize);
+	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinMemoryAreaSize);
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
-	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap->FirstArea);
+	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
 	return heap;
 }
 
@@ -89,7 +113,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	if (size == 0)
 		return NULL;
 
-	if (size > heap->Config.MaximalMemoryAreaSize)
+	if (size > heap->Config.MaxMemoryAreaSize)
 		return NULL;
 
 	MIHP_LockHeap(heap);
@@ -108,14 +132,14 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		if (currentArea->NumOccupiedSegments == currentArea->NumSegments)
 			continue;
 
-		size_t numTraversalsPerArea = MIHP_MAX(100, MIHP_MIN_TRAVERSELS_BEFORE_EXPANSION * currentArea->NumSegments) / heap->Stats.NumTotalSegments;
+		size_t numTraversalsPerArea = MIHP_MAX(100, heap->Config.MinTotalTraversalsBeforeHeapExpansion * currentArea->NumSegments) / heap->Stats.NumTotalSegments;
 		size_t numTraversedAreaSegments = 0;
 
 		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
 		while (nextSegment)
 		{
 			if (numTraversedAreaSegments > numTraversalsPerArea)
-				if (numTraversedAreaSegments * 100 > currentArea->NumSegments * MIHP_MIN_EXPANSION_TRAVERSEL_RATIO_INT_PERCENT)
+				if (numTraversedAreaSegments * 100 > currentArea->NumSegments * heap->Config.MinHeapTraversalPercentToExpand)
 					break;
 
 			numTraversedAreaSegments++;
@@ -138,10 +162,10 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 				continue;
 
 			targetSegment->OccupiedSize = size;
-			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(targetSegment);
+			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, targetSegment);
 
 			currentArea->NumOccupiedSegments++;
-			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(currentArea);
+			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, currentArea);
 
 			heap->Stats.NumTotalOccupiedSegments++;
 			heap->LastSuccessfulAllocationArea = currentArea;
@@ -160,7 +184,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	size_t newAreaSize = heap->Stats.TotalSize;
 
 	while (newAreaSize < size)
-		newAreaSize = MIHP_MIN(heap->Config.MaximalMemoryAreaSize, newAreaSize * 2);
+		newAreaSize = MIHP_MIN(heap->Config.MaxMemoryAreaSize, newAreaSize * 2);
 
 	MIHP_HeapMemoryAreaHeader* newArea = MIHP_CreateHeapMemoryArea(heap, newAreaSize);
 	if (newArea == NULL)
@@ -171,11 +195,11 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 	newArea->NextArea = heap->FirstArea;
 	heap->FirstArea->PreviousArea = newArea;
-	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap->FirstArea);
+	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
 
 	heap->FirstArea = newArea;
 	heap->LastSuccessfulAllocationArea = newArea;
-	newArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(newArea);
+	newArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, newArea);
 
 	MIHP_UnlockHeap(heap);
 	return MIHP_Allocate(heap, size);
@@ -211,7 +235,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		{
 			MIHP_MEMSET((char*)ptr + segment->OccupiedSize, newSize - segment->OccupiedSize, heap->Config.AllocationInitialValue);
 			segment->OccupiedSize = newSize;
-			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
+			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
 			MIHP_UnlockHeap(heap);
 			return ptr;
@@ -238,7 +262,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 	else if (newSize < segment->OccupiedSize)
 	{
 		segment->OccupiedSize = newSize;
-		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
+		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
 		size_t alignedNewSize = MIHP_GetHeapAlignedSize(heap, newSize);
 		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + MIHP_GetMinimalPayloadSize(heap))
@@ -281,7 +305,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	if (segment->OccupiedSize == 0)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo = {0};
-		corruptionInfo.Type = MIHP_HEAP_CORRUPTION_TYPE_DOUBLE_FREE;
+		corruptionInfo.Type = MIHP_HCE_DoubleFree;
 		corruptionInfo.Ptr = ptr;
 
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
@@ -290,10 +314,10 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	}
 
 	segment->OccupiedSize = 0;
-	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(segment);
+	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 	
 	area->NumOccupiedSegments--;
-	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, area);
 
 	heap->Stats.NumTotalOccupiedSegments--;
 
@@ -308,14 +332,14 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 			{
 				MIHP_ValidateHeapMemoryAreaHeader(heap, prevArea);
 				prevArea->NextArea = nextArea;
-				prevArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(prevArea);
+				prevArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, prevArea);
 			}
 
 			if (nextArea)
 			{
 				MIHP_ValidateHeapMemoryAreaHeader(heap, nextArea);
 				nextArea->PreviousArea = prevArea;
-				nextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(nextArea);
+				nextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, nextArea);
 			}
 
 			if (heap->FirstArea == area)
@@ -367,10 +391,13 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	if (sourceHeap->Config.AllocationAlignment != heapToAbsorb->Config.AllocationAlignment)
 		return false;
 
-	if (sourceHeap->Config.MinimalMemoryAreaSize > heapToAbsorb->Config.MinimalMemoryAreaSize)
+	if (sourceHeap->Config.MinMemoryAreaSize > heapToAbsorb->Config.MinMemoryAreaSize)
 		return false;
 
-	if (sourceHeap->Config.MaximalMemoryAreaSize < heapToAbsorb->Config.MaximalMemoryAreaSize)
+	if (sourceHeap->Config.MaxMemoryAreaSize < heapToAbsorb->Config.MaxMemoryAreaSize)
+		return false;
+
+	if (sourceHeap->Config.HeapValidationMode != heapToAbsorb->Config.HeapValidationMode)
 		return false;
 
 	MIHP_LockHeap(sourceHeap);
@@ -399,8 +426,8 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	MIHP_UnlockHeap(heapToAbsorb);
 	MIHP_MEMSET(heapToAbsorb, sizeof(MIHP_Heap), 0);
 
-	sourceEndArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceEndArea);
-	sourceEndArea->NextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceEndArea->NextArea);
+	sourceEndArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea);
+	sourceEndArea->NextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea->NextArea);
 	MIHP_UnlockHeap(sourceHeap);
 	return true;
 }
@@ -484,9 +511,9 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 {
 	MIHP_ASSERT(heap);
 
-	size_t effectiveSize = ((requestedSize + heap->Config.MinimalMemoryAreaSize - 1) / heap->Config.MinimalMemoryAreaSize) * heap->Config.MinimalMemoryAreaSize;
-	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinimalMemoryAreaSize);
-	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaximalMemoryAreaSize);
+	size_t effectiveSize = ((requestedSize + heap->Config.MinMemoryAreaSize - 1) / heap->Config.MinMemoryAreaSize) * heap->Config.MinMemoryAreaSize;
+	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinMemoryAreaSize);
+	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaxMemoryAreaSize);
 
 	size_t actualSize = 0;
 	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)heap->Config.PlatformRequestMemoryFn(heap, effectiveSize, &actualSize);
@@ -502,7 +529,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 
 	size_t headerSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapMemoryAreaHeader));
 	area->FirstSegment = MIHP_InitializeHeapSegment(heap, area, (char*)area + headerSize, area->AreaSize - headerSize);
-	area->FirstSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(area->FirstSegment);
+	area->FirstSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, area->FirstSegment);
 
 	heap->Stats.NumMemoryAreas++;
 	heap->Stats.TotalSize += area->AreaSize;
@@ -544,7 +571,7 @@ MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapMem
 	segment->Checksum = ~0;
 
 	area->NumSegments++;
-	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
+	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, area);
 
 	heap->Stats.NumTotalSegments++;
 
@@ -559,7 +586,7 @@ bool MIHP_UninitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segme
 		return false;
 
 	segment->OwningMemoryArea->NumSegments--;
-	segment->OwningMemoryArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(segment->OwningMemoryArea);
+	segment->OwningMemoryArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, segment->OwningMemoryArea);
 	heap->Stats.NumTotalSegments--;
 
 	MIHP_MEMSET(segment, sizeof(MIHP_HeapSegmentHeader), 0);
@@ -592,13 +619,13 @@ bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegmen
 	{
 		MIHP_ValidateHeapSegmentHeader(heap, sourceSegment->NextSegment);
 		sourceSegment->NextSegment->PreviousSegment = newSegment;
-		sourceSegment->NextSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment->NextSegment);
+		sourceSegment->NextSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, sourceSegment->NextSegment);
 	}
 
 	sourceSegment->NextSegment = newSegment;
 
-	newSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(newSegment);
-	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
+	newSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, newSegment);
+	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, sourceSegment);
 
 	*outNewSegment = newSegment;
 	return true;
@@ -619,13 +646,13 @@ bool MIHP_MergeHeapSegments(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegme
 	{
 		MIHP_ValidateHeapSegmentHeader(heap, sourceSegment->NextSegment);
 		sourceSegment->NextSegment->PreviousSegment = sourceSegment;
-		sourceSegment->NextSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment->NextSegment);
+		sourceSegment->NextSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, sourceSegment->NextSegment);
 	}
 
 	sourceSegment->SegmentSize += segmentToAbsorb->SegmentSize;
 	MIHP_UninitializeHeapSegment(heap, segmentToAbsorb);
 
-	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(sourceSegment);
+	sourceSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, sourceSegment);
 
 	return true;
 }
@@ -664,43 +691,34 @@ uint32_t MIHP_HashMemoryRegion(const void* data, size_t size)
 	return hash;
 }
 
-uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_HeapMemoryAreaHeader* area)
+uint32_t MIHP_GenerateHeapMemoryAreaChecksum(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area)
 {
+	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
+		return 0;
 
-#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
-	return 0;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
-	return 0xAADEADAA;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+	if (heap->Config.HeapValidationMode == MIHP_HVM_MagicNumber)
+		return 0xAADEADAA;
 
 	MIHP_ASSERT(area);
 
 	// Do not include the checksum itself into the new checksum
 	size_t size = offsetof(MIHP_HeapMemoryAreaHeader, Checksum);
 	return MIHP_HashMemoryRegion(area, size);
-
-#else
-	#error "Invalid heap structure validation type"
-#endif
 }
 
-uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_HeapSegmentHeader* segment)
+uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_Heap* heap, const MIHP_HeapSegmentHeader* segment)
 {
-#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
-	return 0;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
-	return 0x55DEAD55;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
+	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
+		return 0;
+
+	if (heap->Config.HeapValidationMode == MIHP_HVM_MagicNumber)
+		return 0x55DEAD55;
 
 	MIHP_ASSERT(segment);
 
 	// Do not include the checksum itself into the new checksum
 	size_t size = offsetof(MIHP_HeapSegmentHeader, Checksum);
 	return MIHP_HashMemoryRegion(segment, size);
-
-#else
-	#error "Invalid heap structure validation type"
-#endif
 }
 
 void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area)
@@ -710,20 +728,20 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMem
 
 	uint32_t newChecksum;
 
-#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
-	return;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
-	newChecksum = 0xAADEADAA;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
-	newChecksum = MIHP_GenerateHeapMemoryAreaChecksum(area);
-#else
-	#error "Invalid heap structure validation type"
-#endif
+	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
+		return;
+
+	if (heap->Config.HeapValidationMode == MIHP_HVM_MagicNumber)
+		newChecksum = 0xAADEADAA;
+	else if (heap->Config.HeapValidationMode == MIHP_HVM_Checksum)
+		newChecksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, area);
+	else
+		MIHP_ASSERT(false);
 
 	if (area->Checksum != newChecksum)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo;
-		corruptionInfo.Type = MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH;
+		corruptionInfo.Type = MIHP_HCE_MemoryAreaChecksumMismatch;
 		corruptionInfo.Ptr = area;
 		corruptionInfo.ExpectedValue = area->Checksum;
 		corruptionInfo.ActualValue = newChecksum;
@@ -739,20 +757,20 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 
 	uint32_t newChecksum;
 
-#if MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_NONE
-	return;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_MAGIC_NUMBER
-	newChecksum = 0x55DEAD55;
-#elif MIHP_HEAP_STRUCTURE_VALIDATION_TYPE == MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
-	newChecksum = MIHP_GenerateHeapSegmentChecksum(segment);
-#else
-	#error "Invalid heap structure validation type"
-#endif
+	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
+		return;
+
+	if (heap->Config.HeapValidationMode == MIHP_HVM_MagicNumber)
+		newChecksum = 0x55DEAD55;
+	else if (heap->Config.HeapValidationMode == MIHP_HVM_Checksum)
+		newChecksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
+	else
+		MIHP_ASSERT(false);
 
 	if (segment->Checksum != newChecksum)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo;
-		corruptionInfo.Type = MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH;
+		corruptionInfo.Type = MIHP_HCE_SegmentChecksumMismatch;
 		corruptionInfo.Ptr = segment;
 		corruptionInfo.ExpectedValue = segment->Checksum;
 		corruptionInfo.ActualValue = newChecksum;

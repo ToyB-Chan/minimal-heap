@@ -32,16 +32,13 @@ void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
 int main()
 {
-	MIHP_HeapConfig config = {0};
+	MIHP_HeapConfig config = MIHP_MakeDefaultConfigPreset();
 
 	config.PlatformRequestMemoryFn = RequestMemory;
 	config.PlatformFreeMemoryFn = FreeMemory;
 	config.OnHeapCorruptionDetectedFn = OnHeapCorruptionDetectedCallback;
 
-	config.AllocationInitialValue = 0xbe;
-	config.AllocationAlignment = 16;
-	config.MinimalMemoryAreaSize = 4096 * 32;
-	config.MaximalMemoryAreaSize = 4096ull * 4096ull * 4096ull;
+	config.HeapValidationMode = MIHP_HVM_None;
 
 	MIHP_Heap myHeap = { 0 };
 	MIHP_InitializeHeap(&myHeap, config);
