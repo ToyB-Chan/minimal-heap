@@ -142,7 +142,8 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		}
 	} while (nextArea != heap->LastSuccessfulAllocationArea);
 
-AllocateNewArea:
+	/* No free segment found (in time), allocate new area */ 
+
 	size_t newAreaSize = heap->Stats.TotalSize;
 
 	while (newAreaSize < size)
