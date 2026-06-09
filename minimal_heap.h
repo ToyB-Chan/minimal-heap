@@ -16,7 +16,6 @@
 #define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM 2
 
 /* Defines to be configured by the library user */
-
 #ifndef MIHP_HEAP_STRUCTURE_VALIDATION_TYPE
 	#define MIHP_HEAP_STRUCTURE_VALIDATION_TYPE MIHP_HEAP_STRUCTURE_VALIDATION_TYPE_CHECKSUM
 #endif
@@ -33,31 +32,38 @@
 	#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }
 #endif
 
-#ifndef MIHP_HEAP_LOCK_TYPE
-	#define MIHP_HEAP_LOCK_TYPE bool // Does NOT have to be reentred safe
-	#define MIHP_LOCK_HEAP(LockVarPtr) {}
-	#define MIHP_UNLOCK_HEAP(LockVarPtr) {}
+#ifndef MIHP_MEMSET
+	#define MIHP_MEMSET(Ptr, Size, Val) for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val;
 #endif
 /* */
 
-/* Hooks to be implemented by the library user */
-void* MIHP_PlatformRequestMemory(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize); // Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
-bool MIHP_PlatformFreeMemory(const struct _MIHP_Heap* heap, void* ptr, size_t actualSize);
-void MIHP_PlatformOnHeapCorruptionDetected(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo info);
-/* */
+typedef void*(MIHP_PlatformReqeustMemoryFn)(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize);
+typedef bool (MIHP_PlatformFreeMemoryFn)(const struct _MIHP_Heap* heap, void* ptr, size_t actualSize);
 
 #define MIHP_HEAP_CORRUPTION_TYPE_MEMORY_AREA_CHECKSUM_MISMATCH 0
 #define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
 #define MIHP_HEAP_CORRUPTION_TYPE_DOUBLE_FREE 2
 
+typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo);
+
+typedef void(MIHIP_LockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
+typedef void(MIHIP_UnlockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
+
 typedef struct _MIHP_HeapConfig
 {
-	size_t			AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
+	MIHP_PlatformReqeustMemoryFn*		PlatformRequestMemoryFn;		// Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
+	MIHP_PlatformFreeMemoryFn*			PlatformFreeMemoryFn;			// Can return false if the memory cannot be freed
+	MIHP_OnHeapCorruptionDetectedFn*	OnHeapCorruptionDetectedFn;		// Can be NULL
 
-	size_t			MinimalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
-	size_t			MaximalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
+	size_t					MinimalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
+	size_t					MaximalMemoryAreaSize;		// Must be a multiple of AllocationAlignment
 	
-	char			AllocationInitialValue;
+	size_t					AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
+	char					AllocationInitialValue;		// Initial value the returned blocks are to be filled with
+
+	void*					HeapLock;			// Does not need to be reentred safe, can be NULL to disable locking
+	MIHIP_LockHeapFn*		LockHeapFn;			// Can be NULL if HeapLock is NULL
+	MIHIP_LockHeapFn*		UnlockHeapFn;		// Can be NULL if HeapLock is NULL
 } MIHP_HeapConfig;
 
 typedef struct _MIHP_HeapStats
@@ -114,8 +120,6 @@ typedef struct _MIHP_Heap
 	MIHP_HeapStats Stats;
 	MIHP_HeapMemoryAreaHeader* FirstArea;
 	MIHP_HeapMemoryAreaHeader* LastSuccessfulAllocationArea;
-
-	MIHP_HEAP_LOCK_TYPE HeapLock;
 } MIHP_Heap;
 
 /* API Interface */
@@ -133,6 +137,9 @@ void MIHP_ValidateHeap(MIHP_Heap* heap);
 /* */
 
 /* Internals */
+void MIHP_LockHeap(MIHP_Heap* heap);
+void MIHP_UnlockHeap(MIHP_Heap* heap);
+
 MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t requestedSize);
 bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* area);
 

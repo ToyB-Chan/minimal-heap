@@ -9,19 +9,19 @@
 
 //#define MIHP_ValidateHeap(x)
 
-void* MIHP_PlatformRequestMemory(const MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize)
+void* RequestMemory(const MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize)
 {
 	*outActualSize = minRequestedSize;
 	return malloc(minRequestedSize);
 }
 
-bool MIHP_PlatformFreeMemory(const MIHP_Heap* heap, void* ptr, size_t actualSize)
+bool FreeMemory(const MIHP_Heap* heap, void* ptr, size_t actualSize)
 {
 	free(ptr);
 	return true;
 }
 
-void MIHP_PlatformOnHeapCorruptionDetected(const MIHP_Heap* heap, MIHP_HeapCorruptionInfo info)
+void OnHeapCorruptionDetectedCallback(const MIHP_Heap* heap, MIHP_HeapCorruptionInfo info)
 {
 	__debugbreak();
 }
@@ -33,6 +33,11 @@ void* myptrs[NUM_ALLOCATIONS] = { 0 };
 int main()
 {
 	MIHP_HeapConfig config = {0};
+
+	config.PlatformRequestMemoryFn = RequestMemory;
+	config.PlatformFreeMemoryFn = FreeMemory;
+	config.OnHeapCorruptionDetectedFn = OnHeapCorruptionDetectedCallback;
+
 	config.AllocationInitialValue = 0xbe;
 	config.AllocationAlignment = 16;
 	config.MinimalMemoryAreaSize = 4096 * 32;
@@ -53,6 +58,8 @@ int main()
 	}
 
 	__debugbreak();
+
+	MIHP_MEMSET(myptrs[5], 5000, 0x75);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
