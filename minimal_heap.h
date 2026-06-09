@@ -1,4 +1,4 @@
-/* Version 1.5 */
+/* Version 1.6 */
 
 #ifndef __MINIMAL_HEAP_H__
 #define __MINIMAL_HEAP_H__
@@ -44,7 +44,7 @@ typedef bool (MIHP_PlatformFreeMemoryFn)(const struct _MIHP_Heap* heap, void* pt
 #define MIHP_HEAP_CORRUPTION_TYPE_SEGMENT_CHECKSUM_MISMATCH 1
 #define MIHP_HEAP_CORRUPTION_TYPE_DOUBLE_FREE 2
 
-typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo);
+typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo corruptionInfo);
 
 typedef void(MIHIP_LockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
 typedef void(MIHIP_UnlockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
@@ -84,8 +84,9 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapMemoryAreaHeader* 	NextArea;
 	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
-	struct _MIHP_Heap*								OwningHeap;
-	struct _MIHP_HeapSegmentHeader*					FirstSegment;
+	struct _MIHP_HeapSegmentHeader*		FirstSegment;
+
+	const struct _MIHP_Heap*			InstigatingHeap; // Heap that created this area. May not always be the owning heap (in case of a merge) or safe to deference!
 
 	uint32_t 			Checksum; // Checksum must be the last member !
 } MIHP_HeapMemoryAreaHeader;
@@ -131,6 +132,8 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
 void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_Heap* heap, void* ptr);
 
+bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
+
 bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
 size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr);
 void MIHP_ValidateHeap(MIHP_Heap* heap);
@@ -143,11 +146,11 @@ void MIHP_UnlockHeap(MIHP_Heap* heap);
 MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t requestedSize);
 bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* area);
 
-MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_HeapMemoryAreaHeader* area, void* segmentStart, size_t size);
-bool MIHP_UninitializeHeapSegment(MIHP_HeapSegmentHeader* segment);
+MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* area, void* segmentStart, size_t size);
+bool MIHP_UninitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
 
-bool MIHP_SplitHeapSegment(MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
-bool MIHP_MergeHeapSegments(MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
+bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
+bool MIHP_MergeHeapSegments(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
 void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
 MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr);

@@ -59,7 +59,7 @@ int main()
 
 	__debugbreak();
 
-	MIHP_MEMSET(myptrs[5], 5000, 0x75);
+	//MIHP_MEMSET(myptrs[5], 5000, 0x75);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
