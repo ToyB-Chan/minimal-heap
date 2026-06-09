@@ -34,9 +34,9 @@
 #endif
 
 #ifndef MIHP_HEAP_LOCK_TYPE
-	#define MIHP_HEAP_LOCK_TYPE volatile bool // Does NOT have to be reentred safe
-	#define MIHP_LOCK_HEAP(LockVarPtr) { while (*(LockVarPtr)) {}; *(LockVarPtr) = true; }
-	#define MIHP_UNLOCK_HEAP(LockVarPtr) { *(LockVarPtr) = false; }
+	#define MIHP_HEAP_LOCK_TYPE bool // Does NOT have to be reentred safe
+	#define MIHP_LOCK_HEAP(LockVarPtr) {}
+	#define MIHP_UNLOCK_HEAP(LockVarPtr) {}
 #endif
 /* */
 
