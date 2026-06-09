@@ -21,20 +21,20 @@
 #endif
 /* */
 
-typedef void*(MIHP_PlatformReqeustMemoryFn)(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize);
+typedef void*(MIHP_PlatformRequestMemoryFn)(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize);
 typedef bool (MIHP_PlatformFreeMemoryFn)(const struct _MIHP_Heap* heap, void* ptr, size_t actualSize);
 
 typedef enum _MIHP_HEAP_CORRUPTION_ERROR
 {
 	MIHP_HCE_MemoryAreaChecksumMismatch = 0,
 	MIHP_HCE_SegmentChecksumMismatch = 1,
-	MIHP_HCE_DoubleFree = 2,
-};
+	MIHP_HCE_DoubleFree = 2
+} MIHP_HEAP_CORRUPTION_ERROR;
 
 typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo corruptionInfo);
 
-typedef void(MIHIP_LockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
-typedef void(MIHIP_UnlockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
+typedef void(MIHP_LockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
+typedef void(MIHP_UnlockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
 
 typedef enum _MIHP_HeapValidationMode
 {
@@ -45,7 +45,7 @@ typedef enum _MIHP_HeapValidationMode
 
 typedef struct _MIHP_HeapConfig
 {
-	MIHP_PlatformReqeustMemoryFn*		PlatformRequestMemoryFn;		// Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
+	MIHP_PlatformRequestMemoryFn*		PlatformRequestMemoryFn;		// Alignment must at least be alignment of size_t, outActualSize must at least be minRequestedSize
 	MIHP_PlatformFreeMemoryFn*			PlatformFreeMemoryFn;			// Can return false if the memory cannot be freed
 	MIHP_OnHeapCorruptionDetectedFn*	OnHeapCorruptionDetectedFn;		// Can be NULL
 
@@ -61,8 +61,8 @@ typedef struct _MIHP_HeapConfig
 	MIHP_HeapValidationMode	HeapValidationMode;
 
 	void*					HeapLock;			// Does not need to be reentred safe, can be NULL to disable locking
-	MIHIP_LockHeapFn*		LockHeapFn;			// Can be NULL if HeapLock is NULL
-	MIHIP_LockHeapFn*		UnlockHeapFn;		// Can be NULL if HeapLock is NULL
+	MIHP_LockHeapFn*		LockHeapFn;			// Can be NULL if HeapLock is NULL
+	MIHP_LockHeapFn*		UnlockHeapFn;		// Can be NULL if HeapLock is NULL
 } MIHP_HeapConfig;
 
 typedef struct _MIHP_HeapStats
