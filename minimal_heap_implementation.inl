@@ -81,9 +81,6 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 	MIHP_LOCK_HEAP(&heap->HeapLock);
 
-	size_t numTraversedSegments = 0;
-
-	bool triedLastAllocationArea = false;
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	do
 	{
@@ -98,14 +95,17 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		if (currentArea->NumOccupiedSegments == currentArea->NumSegments)
 			continue;
 
+		size_t numTraversalsPerArea = MIHP_MAX(100, MIHP_MIN_TRAVERSELS_BEFORE_EXPANSION * currentArea->NumSegments) / heap->Stats.NumTotalSegments;
+		size_t numTraversedAreaSegments = 0;
+
 		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
 		while (nextSegment)
 		{
-			if (numTraversedSegments > MIHP_MIN_TRAVERSELS_BEFORE_EXPANSION)
-				if (numTraversedSegments * 100 > heap->Stats.NumTotalOccupiedSegments * MIHP_MIN_EXPANSION_TRAVERSEL_OCCUPIED_INT_PERCENT)
-					goto AllocateNewArea;
+			if (numTraversedAreaSegments > numTraversalsPerArea)
+				if (numTraversedAreaSegments * 100 > currentArea->NumSegments * MIHP_MIN_EXPANSION_TRAVERSEL_RATIO_INT_PERCENT)
+					break;
 
-			numTraversedSegments++;
+			numTraversedAreaSegments++;
 
 			MIHP_HeapSegmentHeader* currentSegment = nextSegment;
 			MIHP_ValidateHeapSegmentHeader(heap, currentSegment);
