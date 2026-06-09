@@ -85,20 +85,13 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 	bool triedLastAllocationArea = false;
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
-	while (nextArea)
+	do
 	{
-		MIHP_HeapMemoryAreaHeader* currentArea = NULL;
+		MIHP_HeapMemoryAreaHeader* currentArea = nextArea;
+		nextArea = currentArea->NextArea;
 
-		if (!triedLastAllocationArea)
-		{
-			currentArea = heap->LastSuccessfulAllocationArea;
-			triedLastAllocationArea = true;
-		}
-		else
-		{
-			currentArea = nextArea;
-			nextArea = currentArea->NextArea;
-		}
+		if (nextArea == NULL)
+			nextArea = heap->FirstArea;
 
 		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
 		
@@ -147,7 +140,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 			return data;
 		}
-	}
+	} while (nextArea != heap->LastSuccessfulAllocationArea);
 
 AllocateNewArea:
 	size_t newAreaSize = heap->Stats.TotalSize;
