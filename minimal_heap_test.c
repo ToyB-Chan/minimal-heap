@@ -5,9 +5,9 @@
 #include <time.h>
 #include <stdio.h>
 
-#define USE_MALLOC 0
+#define USE_MALLOC 1
 
-//#define MIHP_ValidateHeap(x)
+#define MIHP_ValidateHeap(x)
 
 void* RequestMemory(const MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize)
 {
@@ -26,7 +26,7 @@ void OnHeapCorruptionDetectedCallback(const MIHP_Heap* heap, MIHP_HeapCorruption
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 4)
+#define NUM_ALLOCATIONS (4096 * 4096)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
@@ -89,6 +89,26 @@ int main()
 			MIHP_ValidateHeap(&myHeap);
 
 			
+#endif
+		}
+	}
+
+	__debugbreak();
+
+	for (int i = 0; i < NUM_ALLOCATIONS; i++)
+	{
+		volatile int n = i;
+		if (!myptrs[i])
+		{
+			size_t size = 300 + rand() % 500;
+
+#if USE_MALLOC
+			myptrs[i] = malloc(size);
+#else
+			myptrs[i] = MIHP_Allocate(&myHeap, size);
+			MIHP_ValidateHeap(&myHeap);
+
+
 #endif
 		}
 	}
