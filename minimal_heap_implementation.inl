@@ -118,25 +118,24 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 	MIHP_LockHeap(heap);
 
-	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
+	MIHP_HeapMemoryAreaHeader* nextArea = heap->LastSuccessfulAllocationArea;
 	do
 	{
 		MIHP_HeapMemoryAreaHeader* currentArea = nextArea;
+		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
 		nextArea = currentArea->NextArea;
 
 		if (nextArea == NULL)
 			nextArea = heap->FirstArea;
 
-		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
-		
 		if (currentArea->NumOccupiedSegments == currentArea->NumSegments)
 			continue;
 
 		size_t numTraversalsPerArea = MIHP_MAX(100, heap->Config.MinTotalTraversalsBeforeHeapExpansion * currentArea->NumSegments) / heap->Stats.NumTotalSegments;
 		size_t numTraversedAreaSegments = 0;
 
-		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
-		while (nextSegment)
+		MIHP_HeapSegmentHeader* nextSegment = currentArea->LastSuccessfulAllocationSegment;
+		do
 		{
 			if (numTraversedAreaSegments > numTraversalsPerArea)
 				if (numTraversedAreaSegments * 100 > currentArea->NumSegments * heap->Config.MinHeapTraversalPercentToExpand)
@@ -146,7 +145,10 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 			MIHP_HeapSegmentHeader* currentSegment = nextSegment;
 			MIHP_ValidateHeapSegmentHeader(heap, currentSegment);
-			nextSegment = nextSegment->NextSegment;
+			nextSegment = currentSegment->NextSegment;
+
+			if (nextSegment == NULL)
+				nextSegment = currentArea->FirstSegment;
 
 			if (currentSegment->OccupiedSize != 0)
 				continue;
@@ -165,6 +167,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, targetSegment);
 
 			currentArea->NumOccupiedSegments++;
+			currentArea->LastSuccessfulAllocationSegment = currentSegment;
 			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, currentArea);
 
 			heap->Stats.NumTotalOccupiedSegments++;
@@ -176,7 +179,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
 
 			return data;
-		}
+		} while (nextSegment != currentArea->LastSuccessfulAllocationSegment);
 	} while (nextArea != heap->LastSuccessfulAllocationArea);
 
 	/* No free segment found (in time), allocate new area */ 
@@ -241,10 +244,14 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 			return ptr;
 		}
 
-		if (segment->NextSegment && MIHP_MergeHeapSegments(heap, segment, segment->NextSegment))
+		if (segment->NextSegment)
 		{
-			MIHP_UnlockHeap(heap);
-			return MIHP_Reallocate(heap, ptr, newSize);
+			MIHP_ValidateHeapSegmentHeader(heap, segment->NextSegment);
+			if (MIHP_MergeHeapSegments(heap, segment, segment->NextSegment))
+			{
+				MIHP_UnlockHeap(heap);
+				return MIHP_Reallocate(heap, ptr, newSize);
+			}
 		}
 
 		MIHP_UnlockHeap(heap);
@@ -445,7 +452,7 @@ bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 	while (nextArea)
 	{
 		MIHP_HeapMemoryAreaHeader* currentArea = nextArea;
-		MIHP_ValidateHeapSegmentHeader(heap, currentArea);
+		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
 		nextArea = currentArea->NextArea;
 		
 		size_t ptrMin = (size_t)currentArea;
@@ -529,6 +536,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 
 	size_t headerSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapMemoryAreaHeader));
 	area->FirstSegment = MIHP_InitializeHeapSegment(heap, area, (char*)area + headerSize, area->AreaSize - headerSize);
+	area->LastSuccessfulAllocationSegment = area->FirstSegment;
 	area->FirstSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, area->FirstSegment);
 
 	heap->Stats.NumMemoryAreas++;
@@ -647,6 +655,13 @@ bool MIHP_MergeHeapSegments(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegme
 		MIHP_ValidateHeapSegmentHeader(heap, sourceSegment->NextSegment);
 		sourceSegment->NextSegment->PreviousSegment = sourceSegment;
 		sourceSegment->NextSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, sourceSegment->NextSegment);
+	}
+
+	MIHP_ValidateHeapMemoryAreaHeader(heap, sourceSegment->OwningMemoryArea);
+	if (sourceSegment->OwningMemoryArea->LastSuccessfulAllocationSegment == segmentToAbsorb)
+	{
+		sourceSegment->OwningMemoryArea->LastSuccessfulAllocationSegment = sourceSegment;
+		sourceSegment->OwningMemoryArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, sourceSegment->OwningMemoryArea);
 	}
 
 	sourceSegment->SegmentSize += segmentToAbsorb->SegmentSize;

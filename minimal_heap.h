@@ -84,6 +84,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapMemoryAreaHeader* 	PreviousArea;
 
 	struct _MIHP_HeapSegmentHeader*		FirstSegment;
+	struct _MIHP_HeapSegmentHeader*		LastSuccessfulAllocationSegment;
 
 	const struct _MIHP_Heap*			InstigatingHeap; // Heap that created this area. May not always be the owning heap (in case of a merge) or safe to deference!
 
