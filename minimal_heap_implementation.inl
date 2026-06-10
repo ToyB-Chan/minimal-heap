@@ -185,9 +185,10 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		} while (nextSegment != currentArea->LastSuccessfulAllocationSegment);
 	} while (nextArea != heap->LastSuccessfulAllocationArea);
 
-	/* No free segment found (in time), allocate new area */ 
-
-
+	/// 
+	/// No free segment found (in time), allocate new area
+	///
+	
 	size_t newAreaSize = heap->Stats.TotalSize / 4;  // growth-rate of 1.25
 
 	while (newAreaSize < size)
@@ -200,12 +201,19 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 		return NULL;
 	}
 
-	newArea->NextArea = heap->FirstArea;
-	heap->FirstArea->PreviousArea = newArea;
-	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
+	// Insert new area one after first area, since the first area is always kept and should be the smallest
 
-	heap->FirstArea = newArea;
-	heap->LastSuccessfulAllocationArea = newArea;
+	newArea->PreviousArea = heap->FirstArea;
+	newArea->NextArea = heap->FirstArea->NextArea;
+
+	if (heap->FirstArea->NextArea)
+	{
+		heap->FirstArea->NextArea->PreviousArea = newArea;
+		heap->FirstArea->NextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea->NextArea);
+	}
+
+	heap->FirstArea->NextArea = newArea;
+	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
 	newArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, newArea);
 
 	MIHP_UnlockHeap(heap);
@@ -330,7 +338,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	heap->Stats.NumTotalOccupiedSegments--;
 
-	if (area->NumOccupiedSegments == 0 && heap->Stats.NumMemoryAreas > 1)
+	if (area->NumOccupiedSegments == 0 && area != heap->FirstArea)
 	{
 		MIHP_HeapMemoryAreaHeader* prevArea = area->PreviousArea;
 		MIHP_HeapMemoryAreaHeader* nextArea = area->NextArea;
@@ -351,11 +359,8 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 				nextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, nextArea);
 			}
 
-			if (heap->FirstArea == area)
-				heap->FirstArea = nextArea;
-
 			if (heap->LastSuccessfulAllocationArea == area)
-				heap->LastSuccessfulAllocationArea = nextArea;
+				heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
 			MIHP_UnlockHeap(heap);
 			return true;
