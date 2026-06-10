@@ -5,6 +5,9 @@
 #include <time.h>
 #include <stdio.h>
 
+#include <intrin.h>
+#include <string.h>
+
 #define USE_MALLOC 0
 
 #define MIHP_ValidateHeap(x)
@@ -30,6 +33,11 @@ void OnHeapCorruptionDetectedCallback(const MIHP_Heap* heap, MIHP_HeapCorruption
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
+void* GetThisAddress()
+{
+	return _ReturnAddress();
+}
+
 int main()
 {
 	MIHP_HeapConfig config = MIHP_MakeDefaultConfigPreset();
@@ -51,7 +59,23 @@ int main()
 		myptrs[i] = malloc(size);
 #else
 		myptrs[i] = MIHP_Allocate(&myHeap, size);
+
+		MIHP_AllocationCustomMetadata metadata = { 0 };
+		void* ptr = GetThisAddress();
+		memcpy(&metadata.data, &ptr, sizeof(void*));
+
+		MIHP_SetCustomMetadata(&myHeap, myptrs[i], metadata);
 		MIHP_ValidateHeap(&myHeap);
+
+		MIHP_AllocationCustomMetadata outMetadata = { 0 };
+		MIHP_GetCustomMetadata(&myHeap, myptrs[i], &outMetadata);
+		void* returnPtr;
+
+		memcpy(&returnPtr, &outMetadata.data, sizeof(void*));
+
+		MIHP_ASSERT(ptr == returnPtr);
+
+		__debugbreak();
 #endif
 	}
 

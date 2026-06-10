@@ -82,9 +82,6 @@ bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
 
 bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 {
-	if (heap == NULL)
-		return false;
-
 	if (!MIHP_IsHeapInitialized(heap))
 		return false;
 
@@ -107,7 +104,7 @@ bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 
 void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 {
-	if (heap == NULL)
+	if (!MIHP_IsHeapInitialized(heap))
 		return NULL;
 
 	if (size == 0)
@@ -228,9 +225,6 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		return NULL;
 	}
 
-	if (heap == NULL)
-		return NULL;
-
 	if (ptr == NULL)
 		return MIHP_Allocate(heap, newSize);
 
@@ -302,12 +296,6 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 {
-	if (heap == NULL)
-		return false;
-
-	if (ptr == NULL)
-		return false;
-
 	if (!MIHP_IsPointerInHeap(heap, ptr))
 		return false;
 
@@ -385,14 +373,33 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	return true;
 }
 
+bool MIHP_SetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata)
+{
+	if (!MIHP_IsPointerInHeap(heap, ptr))
+		return false;
+
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_ValidateHeapSegmentHeader(heap, segment);
+	segment->CustomMetadata = metadata;
+	return true;
+}
+
+bool MIHP_GetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata)
+{
+	if (outMetadata == NULL)
+		return false;
+
+	if (!MIHP_IsPointerInHeap(heap, ptr))
+		return false;
+
+	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_ValidateHeapSegmentHeader(heap, segment);
+	*outMetadata = segment->CustomMetadata;
+	return true;
+}
+
 bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 {
-	if (sourceHeap == NULL)
-		return false;
-
-	if (heapToAbsorb == NULL)
-		return false;
-
 	if (!MIHP_IsHeapInitialized(sourceHeap))
 		return false;
 
@@ -448,7 +455,7 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 
 bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 {
-	if (heap == NULL)
+	if (!MIHP_IsHeapInitialized(heap))
 		return false;
 
 	MIHP_LockHeap(heap);
@@ -492,6 +499,11 @@ size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr)
 
 void MIHP_ValidateHeap(MIHP_Heap* heap)
 {
+	if (!MIHP_IsHeapInitialized(heap))
+		return false;
+
+	MIHP_LockHeap(heap);
+
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea)
 	{
@@ -507,6 +519,37 @@ void MIHP_ValidateHeap(MIHP_Heap* heap)
 			nextSegment = currentSegment->NextSegment;
 		}
 	}
+
+	MIHP_UnlockHeap(heap);
+}
+
+bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
+{
+	if (!MIHP_IsHeapInitialized(heap))
+		return false;
+
+	if (callback == NULL)
+		return false;
+
+	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
+	while (nextArea != NULL)
+	{
+		MIHP_HeapMemoryAreaHeader* currentArea = nextArea;
+		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
+		nextArea = currentArea->NextArea;
+
+		MIHP_HeapSegmentHeader* nextSegment = currentArea->FirstSegment;
+		while (nextSegment != NULL)
+		{
+			MIHP_HeapSegmentHeader* currentSegment = nextSegment;
+			MIHP_ValidateHeapSegmentHeader(heap, currentSegment);
+			nextSegment = currentSegment->NextSegment;
+
+			callback(heap, currentArea, currentSegment);
+		}
+	}
+
+	return true;
 }
 
 void MIHP_LockHeap(MIHP_Heap* heap)

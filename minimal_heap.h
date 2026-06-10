@@ -91,6 +91,11 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	uint32_t 			Checksum; // Checksum must be the last member !
 } MIHP_HeapMemoryAreaHeader;
 
+typedef struct _MIHP_AllocationCustomMetadata
+{
+	uint8_t data[16];
+} MIHP_AllocationCustomMetadata;
+
 // This structs size must be multiple of 8
 typedef struct _MIHP_HeapSegmentHeader
 {
@@ -101,9 +106,9 @@ typedef struct _MIHP_HeapSegmentHeader
 	struct _MIHP_HeapSegmentHeader* 		PreviousSegment;
 	struct _MIHP_HeapMemoryAreaHeader* 		OwningMemoryArea;
 
-	uint8_t	_padding0[16];
+	struct _MIHP_AllocationCustomMetadata	CustomMetadata;
 
-	uint32_t 			Checksum; // Checksum must be the last member !
+	uint32_t 		Checksum; // Checksum must be the last member !
 
 } MIHP_HeapSegmentHeader;
 
@@ -134,11 +139,18 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
 void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_Heap* heap, void* ptr);
 
+bool MIHP_SetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata);
+bool MIHP_GetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata);
+
 bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
 
 bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
 size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr);
 void MIHP_ValidateHeap(MIHP_Heap* heap);
+
+typedef void(MIHP_WalkHeapCallbackFn)(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area, const MIHP_HeapSegmentHeader* segment);
+
+bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback);
 /* */
 
 /* Internals */
