@@ -68,20 +68,15 @@ typedef struct _MIHP_HeapConfig
 typedef struct _MIHP_HeapStats
 {
 	size_t 				NumMemoryAreas;
-
 	size_t 				NumTotalSegments;
 	size_t 				NumTotalOccupiedSegments;
-
 	size_t 				TotalSize;
-	size_t				TotalSizeOccupied;
 } MIHP_HeapStats;
 
 // This structs size must be multiple of 8
 typedef struct _MIHP_HeapMemoryAreaHeader
 {
 	size_t 							AreaSize;
-	size_t							AreaSizeOccupied;
-
 	size_t 							NumSegments;
 	size_t 							NumOccupiedSegments;
 

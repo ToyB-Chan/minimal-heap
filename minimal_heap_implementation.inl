@@ -170,7 +170,6 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			// Set it to currentSegment as it may be a large segment we've split targetSegment of
 			currentArea->LastSuccessfulAllocationSegment = currentSegment;
 
-			currentArea->AreaSizeOccupied += targetSegment->SegmentSize;
 			currentArea->NumOccupiedSegments++;
 			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, currentArea);
 
@@ -326,7 +325,6 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	segment->OccupiedSize = 0;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 	
-	area->AreaSizeOccupied -= segment->SegmentSize;
 	area->NumOccupiedSegments--;
 	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, area);
 
@@ -433,7 +431,6 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	sourceHeap->Stats.NumTotalSegments += heapToAbsorb->Stats.NumTotalSegments;
 	sourceHeap->Stats.NumTotalOccupiedSegments += heapToAbsorb->Stats.NumTotalOccupiedSegments;
 	sourceHeap->Stats.TotalSize += heapToAbsorb->Stats.TotalSize;
-	sourceHeap->Stats.TotalSizeOccupied += heapToAbsorb->Stats.TotalSizeOccupied;
 
 	MIHP_UnlockHeap(heapToAbsorb);
 	MIHP_MEMSET(heapToAbsorb, sizeof(MIHP_Heap), 0);
@@ -555,22 +552,17 @@ bool MIHP_DestroyHeapMemoryArea(MIHP_Heap* heap, MIHP_HeapMemoryAreaHeader* memo
 	MIHP_ASSERT(heap);
 	MIHP_ASSERT(memoryArea);
 
-	size_t areaSize = memoryArea->AreaSize;
-	size_t areaSizeOccupied = memoryArea->AreaSizeOccupied;
-
 	size_t areaNumSegments = memoryArea->NumSegments;
 	size_t areaNumOccupiedSegments = memoryArea->NumOccupiedSegments;
+	size_t areaSize = memoryArea->AreaSize;
 
 	if (!heap->Config.PlatformFreeMemoryFn(memoryArea->InstigatingHeap, memoryArea, memoryArea->AreaSize))
 		return false;
 
-	heap->Stats.NumMemoryAreas--;
-
-	heap->Stats.TotalSize -= areaSize;
-	heap->Stats.TotalSizeOccupied -= areaSizeOccupied;
-
 	heap->Stats.NumTotalSegments -= areaNumSegments;
 	heap->Stats.NumTotalOccupiedSegments -= areaNumOccupiedSegments;
+	heap->Stats.NumMemoryAreas--;
+	heap->Stats.TotalSize -= areaSize;
 
 	return true;
 }
