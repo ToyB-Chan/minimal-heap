@@ -166,8 +166,10 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			targetSegment->OccupiedSize = size;
 			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, targetSegment);
 
-			currentArea->NumOccupiedSegments++;
+			// Set it to currentSegment as it may be a large segment we've split targetSegment of
 			currentArea->LastSuccessfulAllocationSegment = currentSegment;
+
+			currentArea->NumOccupiedSegments++;
 			currentArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, currentArea);
 
 			heap->Stats.NumTotalOccupiedSegments++;
@@ -279,7 +281,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 			MIHP_HeapSegmentHeader* newSpittedSegment = NULL;
 			MIHP_SplitHeapSegment(heap, segment, newSplitSegmentSize, &newSpittedSegment);
 			if (newSpittedSegment && newSpittedSegment->NextSegment)
-				MIHP_MergeHeapSegments(heap, newSpittedSegment, newSpittedSegment->NextSegment);
+				MIHP_MergeHeapSegments(heap, newSpittedSegment, newSpittedSegment->NextSegment); // Try directly merging with the adjacent segment
 		}
 
 		MIHP_UnlockHeap(heap);

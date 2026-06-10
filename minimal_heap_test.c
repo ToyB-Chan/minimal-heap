@@ -5,7 +5,7 @@
 #include <time.h>
 #include <stdio.h>
 
-#define USE_MALLOC 1
+#define USE_MALLOC 0
 
 #define MIHP_ValidateHeap(x)
 
