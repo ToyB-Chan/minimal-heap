@@ -8,7 +8,7 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	MIHP_HeapConfig cfg = { 0 };
 
 	cfg.MinMemoryAreaSize = 4096 * 32;
-	cfg.MaxMemoryAreaSize = 4096 * 4096 * 8;
+	cfg.MaxMemoryAreaSize = 4096 * 4096 * 128;
 
 	cfg.MinTotalTraversalsBeforeHeapExpansion = 10'000;
 	cfg.MinHeapTraversalPercentToExpand = 80;
@@ -187,10 +187,11 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 	/* No free segment found (in time), allocate new area */ 
 
-	size_t newAreaSize = heap->Stats.TotalSize;
+
+	size_t newAreaSize = heap->Stats.TotalSize / 4;  // growth-rate of 1.25
 
 	while (newAreaSize < size)
-		newAreaSize = MIHP_MIN(heap->Config.MaxMemoryAreaSize, newAreaSize * 2);
+		newAreaSize = MIHP_MIN(heap->Config.MaxMemoryAreaSize, newAreaSize + newAreaSize / 4);
 
 	MIHP_HeapMemoryAreaHeader* newArea = MIHP_CreateHeapMemoryArea(heap, newAreaSize);
 	if (newArea == NULL)

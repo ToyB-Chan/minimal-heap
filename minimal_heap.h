@@ -1,4 +1,4 @@
-/* Version 1.7 */
+/* Version 1.8 */
 
 #ifndef __MINIMAL_HEAP_H__
 #define __MINIMAL_HEAP_H__
@@ -169,8 +169,8 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap);
 /* */
 
+#if MIHP_IMPLEMENTATION
+#include "minimal_heap_implementation.inl"
 #endif
 
-#if MIHP_IMPLEMENTATION
-	#include "minimal_heap_implementation.inl"
 #endif
