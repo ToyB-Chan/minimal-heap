@@ -69,7 +69,7 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
 	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
-	return heap;
+	return true;
 }
 
 bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
