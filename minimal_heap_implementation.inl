@@ -156,12 +156,13 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
 			MIHP_HeapSegmentHeader* targetSegment = NULL;
 
-			if (currentSegment->SegmentSize >= 2 * segmentHeaderSize + size + MIHP_GetMinimalPayloadSize(heap))
-				MIHP_SplitHeapSegment(heap, currentSegment, segmentHeaderSize + size, &targetSegment);
-			else if (currentSegment->SegmentSize >= segmentHeaderSize + size)
-				targetSegment = currentSegment;
-			else
-				continue;
+			if (!MIHP_SplitHeapSegment(heap, currentSegment, segmentHeaderSize + size, &targetSegment))
+			{
+				if (currentSegment->SegmentSize >= segmentHeaderSize + size)
+					targetSegment = currentSegment;
+				else
+					continue;
+			}
 
 			targetSegment->OccupiedSize = size;
 			targetSegment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, targetSegment);
@@ -274,15 +275,13 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
 		size_t alignedNewSize = MIHP_GetHeapAlignedSize(heap, newSize);
-		if (segment->SegmentSize > 2 * segmentHeaderSize + alignedNewSize + MIHP_GetMinimalPayloadSize(heap))
-		{
-			size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
+		size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
 
-			MIHP_HeapSegmentHeader* newSpittedSegment = NULL;
-			MIHP_SplitHeapSegment(heap, segment, newSplitSegmentSize, &newSpittedSegment);
-			if (newSpittedSegment && newSpittedSegment->NextSegment)
-				MIHP_MergeHeapSegments(heap, newSpittedSegment, newSpittedSegment->NextSegment); // Try directly merging with the adjacent segment
-		}
+		MIHP_HeapSegmentHeader* newSpittedSegment = NULL;
+		MIHP_SplitHeapSegment(heap, segment, newSplitSegmentSize, &newSpittedSegment);
+
+		if (newSpittedSegment && newSpittedSegment->NextSegment)
+			MIHP_MergeHeapSegments(heap, newSpittedSegment, newSpittedSegment->NextSegment); // Try directly merging with the adjacent segment
 
 		MIHP_UnlockHeap(heap);
 		return ptr;
@@ -609,6 +608,8 @@ bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegmen
 	MIHP_ASSERT(sourceSegment);
 
 	size_t headerSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+	newSegmentMinSize = MIHP_MAX(MIHP_GetMinimalPayloadSize(heap) + headerSize, newSegmentMinSize);
+
 	size_t effectiveNewSegmentSize = MIHP_GetHeapAlignedSize(heap, newSegmentMinSize);
 
 	if (sourceSegment->SegmentSize < effectiveNewSegmentSize)
@@ -616,6 +617,9 @@ bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegmen
 
 	size_t sourceResultingSegmentSize = sourceSegment->SegmentSize - effectiveNewSegmentSize;
 
+	if (sourceResultingSegmentSize < MIHP_GetMinimalPayloadSize(heap) + headerSize)
+		return false;
+	
 	if (sourceResultingSegmentSize < sourceSegment->OccupiedSize + headerSize)
 		return false;
 

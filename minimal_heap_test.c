@@ -26,7 +26,7 @@ void OnHeapCorruptionDetectedCallback(const MIHP_Heap* heap, MIHP_HeapCorruption
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096 * 4096)
+#define NUM_ALLOCATIONS (4096 * 4)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
@@ -38,14 +38,14 @@ int main()
 	config.PlatformFreeMemoryFn = FreeMemory;
 	config.OnHeapCorruptionDetectedFn = OnHeapCorruptionDetectedCallback;
 
-	config.HeapValidationMode = MIHP_HVM_None;
+	config.HeapValidationMode = MIHP_HVM_Checksum;
 
 	MIHP_Heap myHeap = { 0 };
 	MIHP_InitializeHeap(&myHeap, config);
 
 	for (int i = 0; i < NUM_ALLOCATIONS; i++)
 	{
-		size_t size = 473 + (i % 5 == 0 ? 854 : 0);
+		size_t size = 565 + (i % 5 == 0 ? 854 : 0);
 #if USE_MALLOC
 		myptrs[i] = malloc(size);
 #else
