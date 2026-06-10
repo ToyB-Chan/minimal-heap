@@ -146,7 +146,7 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
 
 bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
 size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr);
-void MIHP_ValidateHeap(MIHP_Heap* heap);
+bool MIHP_ValidateHeap(MIHP_Heap* heap);
 
 typedef void(MIHP_WalkHeapCallbackFn)(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area, const MIHP_HeapSegmentHeader* segment);
 

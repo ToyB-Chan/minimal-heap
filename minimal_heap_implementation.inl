@@ -497,9 +497,12 @@ size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr)
 	return segment->OccupiedSize;
 }
 
-void MIHP_ValidateHeap(MIHP_Heap* heap)
+bool MIHP_ValidateHeap(MIHP_Heap* heap)
 {
 	if (!MIHP_IsHeapInitialized(heap))
+		return false;
+
+	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
 		return false;
 
 	MIHP_LockHeap(heap);
@@ -521,6 +524,7 @@ void MIHP_ValidateHeap(MIHP_Heap* heap)
 	}
 
 	MIHP_UnlockHeap(heap);
+	return true;
 }
 
 bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
