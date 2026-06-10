@@ -453,7 +453,7 @@ bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 
 	MIHP_LockHeap(heap);
 
-	size_t searchingPtr = (size_t)ptr;
+	uintptr_t searchingPtr = (uintptr_t)ptr;
 
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea)
@@ -462,8 +462,8 @@ bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
 		nextArea = currentArea->NextArea;
 		
-		size_t ptrMin = (size_t)currentArea;
-		size_t ptrMax = (size_t)currentArea + currentArea->AreaSize;
+		uintptr_t ptrMin = (uintptr_t)currentArea;
+		uintptr_t ptrMax = (uintptr_t)currentArea + currentArea->AreaSize;
 
 		if (searchingPtr >= ptrMin && searchingPtr <= ptrMax)
 		{
