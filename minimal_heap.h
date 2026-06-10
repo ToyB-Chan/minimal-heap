@@ -53,10 +53,10 @@ typedef struct _MIHP_HeapConfig
 	size_t					MaxMemoryAreaSize;		// Must be a multiple of AllocationAlignment
 
 	size_t					MinTotalTraversalsBeforeHeapExpansion;		// Minimal amounts of traversals during allocation before considering expanding the heap
-	char					MinHeapTraversalPercentToExpand;			// Minimal integer percent of the heap traversed before expanding the heap
+	uint8_t					MinHeapTraversalPercentToExpand;			// Minimal integer percent of the heap traversed before expanding the heap
 	
 	size_t					AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
-	char					AllocationInitialValue;		// Initial value the returned blocks are to be filled with
+	uint8_t					AllocationInitialValue;		// Initial value the returned blocks are to be filled with
 
 	MIHP_HeapValidationMode	HeapValidationMode;
 
@@ -101,7 +101,7 @@ typedef struct _MIHP_HeapSegmentHeader
 	struct _MIHP_HeapSegmentHeader* 		PreviousSegment;
 	struct _MIHP_HeapMemoryAreaHeader* 		OwningMemoryArea;
 
-	char _padding0[16];
+	uint8_t	_padding0[16];
 
 	uint32_t 			Checksum; // Checksum must be the last member !
 

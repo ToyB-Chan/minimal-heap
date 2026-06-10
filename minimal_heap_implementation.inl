@@ -8,7 +8,7 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	MIHP_HeapConfig cfg = { 0 };
 
 	cfg.MinMemoryAreaSize = 4096 * 32;
-	cfg.MaxMemoryAreaSize = 4096 * 4096 * 128;
+	cfg.MaxMemoryAreaSize = 4096 * 4096 * 128ull;
 
 	cfg.MinTotalTraversalsBeforeHeapExpansion = 10'000;
 	cfg.MinHeapTraversalPercentToExpand = 80;
