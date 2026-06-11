@@ -27,12 +27,12 @@ typedef uintptr_t MIHP_HeapOpaque;
 typedef void*(MIHP_PlatformRequestMemoryFn)(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize);
 typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* ptr, size_t actualSize);
 
-typedef enum _MIHP_HEAP_CORRUPTION_ERROR
+typedef enum _MIHP_HeapCorruptionError
 {
 	MIHP_HCE_MemoryAreaChecksumMismatch = 0,
 	MIHP_HCE_SegmentChecksumMismatch = 1,
 	MIHP_HCE_DoubleFree = 2
-} MIHP_HEAP_CORRUPTION_ERROR;
+} MIHP_HeapCorruptionError;
 
 typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo corruptionInfo);
 
@@ -116,7 +116,7 @@ typedef struct _MIHP_HeapSegmentHeader
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
-	uint8_t 						Type;
+	MIHP_HeapCorruptionError 		Type;
 	const void* 					Ptr;
 	uint32_t 						ExpectedValue;
 	uint32_t 						ActualValue;
