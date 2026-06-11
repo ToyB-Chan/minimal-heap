@@ -1,7 +1,8 @@
-/* Version 1.8 */
-
 #ifndef __MINIMAL_HEAP_H__
 #define __MINIMAL_HEAP_H__
+
+#define MIHP_VERSION_MAJOR 1
+#define MIHP_VERSION_MINOR 9
 
 #include <stddef.h>
 #include <stdint.h>
@@ -183,7 +184,7 @@ size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap);
 /* */
 
 #if MIHP_IMPLEMENTATION
-#include "minimal_heap_implementation.inl"
+	#include "minimal_heap_implementation.inl"
 #endif
 
 #endif
