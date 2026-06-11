@@ -54,7 +54,7 @@ typedef struct _MIHP_HeapConfig
 
 	size_t					MinMemoryAreaSize;		// Must be a multiple of AllocationAlignment
 	size_t					MaxMemoryAreaSize;		// Must be a multiple of AllocationAlignment
-	size_t					MaxHeapSize;
+	size_t					MaxHeapSize;			// Maximum size the heap is allowed to grow to. May exceed slightly if PlatformRequestMemory returns a larger area than requested
 
 	size_t					MinTotalTraversalsBeforeHeapExpansion;		// Minimal amounts of traversals during allocation before considering expanding the heap
 	uint8_t					MinHeapTraversalPercentToExpand;			// Minimal integer percent of the heap traversed before expanding the heap
