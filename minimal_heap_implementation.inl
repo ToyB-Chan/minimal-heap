@@ -9,6 +9,7 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 
 	cfg.MinMemoryAreaSize = 4096 * 32;
 	cfg.MaxMemoryAreaSize = 4096 * 4096 * 128ull;
+	cfg.MaxHeapSize = ~0;
 
 	cfg.MinTotalTraversalsBeforeHeapExpansion = 10'000;
 	cfg.MinHeapTraversalPercentToExpand = 80;
@@ -33,6 +34,9 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 		return false;
 
 	if (config.PlatformFreeMemoryFn == NULL)
+		return false;
+
+	if (config.MaxHeapSize < config.MinMemoryAreaSize)
 		return false;
 
 	if (config.MinTotalTraversalsBeforeHeapExpansion < 10)
@@ -583,6 +587,9 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 	size_t effectiveSize = ((requestedSize + heap->Config.MinMemoryAreaSize - 1) / heap->Config.MinMemoryAreaSize) * heap->Config.MinMemoryAreaSize;
 	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinMemoryAreaSize);
 	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaxMemoryAreaSize);
+
+	if (heap->Stats.TotalSize + requestedSize > heap->Config.MaxHeapSize)
+		return NULL;
 
 	size_t actualSize = 0;
 	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)heap->Config.PlatformRequestMemoryFn(heap, effectiveSize, &actualSize);
