@@ -588,7 +588,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 	effectiveSize = MIHP_MAX(effectiveSize, heap->Config.MinMemoryAreaSize);
 	effectiveSize = MIHP_MIN(effectiveSize, heap->Config.MaxMemoryAreaSize);
 
-	if (heap->Stats.TotalSize + requestedSize > heap->Config.MaxHeapSize)
+	if (heap->Stats.TotalSize + effectiveSize > heap->Config.MaxHeapSize)
 		return NULL;
 
 	size_t actualSize = 0;
