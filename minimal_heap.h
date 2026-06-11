@@ -137,13 +137,13 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
 void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
 bool MIHP_Free(MIHP_Heap* heap, void* ptr);
 
-bool MIHP_SetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata);
-bool MIHP_GetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata);
+bool MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata);
+bool MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata);
 
 bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
 
-bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr);
-size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr);
+bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr);
+size_t MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr);
 bool MIHP_ValidateHeap(MIHP_Heap* heap);
 
 typedef void(MIHP_WalkHeapCallbackFn)(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area, const MIHP_HeapSegmentHeader* segment);

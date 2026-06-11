@@ -231,7 +231,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 	if (ptr == NULL)
 		return MIHP_Allocate(heap, newSize);
 
-	if (!MIHP_IsPointerInHeap(heap, ptr))
+	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return NULL;
 
 	MIHP_LockHeap(heap);
@@ -299,7 +299,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 {
-	if (!MIHP_IsPointerInHeap(heap, ptr))
+	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return false;
 
 	MIHP_LockHeap(heap);
@@ -378,9 +378,9 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	return true;
 }
 
-bool MIHP_SetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata)
+bool MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata)
 {
-	if (!MIHP_IsPointerInHeap(heap, ptr))
+	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return false;
 
 	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
@@ -389,12 +389,12 @@ bool MIHP_SetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMet
 	return true;
 }
 
-bool MIHP_GetCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata)
+bool MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata)
 {
 	if (outMetadata == NULL)
 		return false;
 
-	if (!MIHP_IsPointerInHeap(heap, ptr))
+	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return false;
 
 	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
@@ -458,7 +458,7 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	return true;
 }
 
-bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
+bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr)
 {
 	if (!MIHP_IsHeapInitialized(heap))
 		return false;
@@ -488,9 +488,9 @@ bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 	return false;
 }
 
-size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr)
+size_t MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr)
 {
-	if (!MIHP_IsPointerInHeap(heap, ptr))
+	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return 0;
 
 	MIHP_LockHeap(heap);

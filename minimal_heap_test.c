@@ -64,11 +64,11 @@ int main()
 		void* ptr = GetThisAddress();
 		memcpy(&metadata.data, &ptr, sizeof(void*));
 
-		MIHP_SetCustomMetadata(&myHeap, myptrs[i], metadata);
+		MIHP_SetPointerCustomMetadata(&myHeap, myptrs[i], metadata);
 		MIHP_ValidateHeap(&myHeap);
 
 		MIHP_AllocationCustomMetadata outMetadata = { 0 };
-		MIHP_GetCustomMetadata(&myHeap, myptrs[i], &outMetadata);
+		MIHP_GetPointerCustomMetadata(&myHeap, myptrs[i], &outMetadata);
 		void* returnPtr;
 
 		memcpy(&returnPtr, &outMetadata.data, sizeof(void*));
