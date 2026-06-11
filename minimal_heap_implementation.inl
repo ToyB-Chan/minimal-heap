@@ -272,6 +272,8 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		for (size_t i = 0; i < segment->OccupiedSize; i++)
 			((char*)newPtr)[i] = ((char*)ptr)[i];
 
+		MIHP_SetPointerCustomMetadata(heap, newPtr, segment->CustomMetadata);
+
 		MIHP_Free(heap, ptr);
 		return newPtr;
 	}
