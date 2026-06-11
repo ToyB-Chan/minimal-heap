@@ -17,7 +17,7 @@
 #endif
 
 #ifndef MIHP_MEMSET
-	#define MIHP_MEMSET(Ptr, Size, Val) for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val;
+	#define MIHP_MEMSET(Ptr, Size, Val) do { for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val; } while(0);
 #endif
 /* */
 
@@ -62,7 +62,7 @@ typedef struct _MIHP_HeapConfig
 
 	void*					HeapLock;			// Does not need to be reentred safe, can be NULL to disable locking
 	MIHP_LockHeapFn*		LockHeapFn;			// Can be NULL if HeapLock is NULL
-	MIHP_LockHeapFn*		UnlockHeapFn;		// Can be NULL if HeapLock is NULL
+	MIHP_UnlockHeapFn*		UnlockHeapFn;		// Can be NULL if HeapLock is NULL
 } MIHP_HeapConfig;
 
 typedef struct _MIHP_HeapStats
@@ -73,7 +73,6 @@ typedef struct _MIHP_HeapStats
 	size_t 				TotalSize;
 } MIHP_HeapStats;
 
-// This structs size must be multiple of 8
 typedef struct _MIHP_HeapMemoryAreaHeader
 {
 	size_t 							AreaSize;
@@ -86,6 +85,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapSegmentHeader*		FirstSegment;
 	struct _MIHP_HeapSegmentHeader*		LastSuccessfulAllocationSegment;
 
+	// TODO: Change this to an InstigatingHeapUuid (opaque ptr)
 	const struct _MIHP_Heap*			InstigatingHeap; // Heap that created this area. May not always be the owning heap (in case of a merge) or safe to deference!
 
 	uint32_t 			Checksum; // Checksum must be the last member !
@@ -96,7 +96,6 @@ typedef struct _MIHP_AllocationCustomMetadata
 	uint8_t data[16];
 } MIHP_AllocationCustomMetadata;
 
-// This structs size must be multiple of 8
 typedef struct _MIHP_HeapSegmentHeader
 {
 	size_t						SegmentSize;
@@ -109,7 +108,6 @@ typedef struct _MIHP_HeapSegmentHeader
 	struct _MIHP_AllocationCustomMetadata	CustomMetadata;
 
 	uint32_t 		Checksum; // Checksum must be the last member !
-
 } MIHP_HeapSegmentHeader;
 
 typedef struct _MIHP_HeapCorruptionInfo

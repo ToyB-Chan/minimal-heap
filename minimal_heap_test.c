@@ -74,8 +74,6 @@ int main()
 		memcpy(&returnPtr, &outMetadata.data, sizeof(void*));
 
 		MIHP_ASSERT(ptr == returnPtr);
-
-		__debugbreak();
 #endif
 	}
 

@@ -1,5 +1,5 @@
-#define MIHP_MIN(A, B) (A) < (B) ? (A) : (B)
-#define MIHP_MAX(A, B) (A) > (B) ? (A) : (B)
+#define MIHP_MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MIHP_MAX(A, B) ((A) > (B) ? (A) : (B))
 
 #define MIHP_IS_PO2(Val) (Val != 0 && (Val & (Val - 1)) == 0)
 
@@ -66,6 +66,9 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 
 	heap->Config = config;
 	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinMemoryAreaSize);
+	if (heap->FirstArea == NULL)
+		return false;
+
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
 	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
@@ -185,7 +188,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	/// 
 	/// No free segment found (in time), allocate new area
 	///
-	
+
 	size_t newAreaSize = heap->Stats.TotalSize / 4;  // growth-rate of 1.25
 
 	while (newAreaSize < size)
@@ -309,18 +312,20 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	if (segment->OccupiedSize == 0)
 	{
-		MIHP_HeapCorruptionInfo corruptionInfo = {0};
+		MIHP_HeapCorruptionInfo corruptionInfo = { 0 };
 		corruptionInfo.Type = MIHP_HCE_DoubleFree;
 		corruptionInfo.Ptr = ptr;
 
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
 			heap->Config.OnHeapCorruptionDetectedFn(heap, corruptionInfo);
+
+		MIHP_UnlockHeap(heap);
 		return false;
 	}
 
 	segment->OccupiedSize = 0;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
-	
+
 	area->NumOccupiedSegments--;
 	area->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, area);
 
@@ -468,7 +473,7 @@ bool MIHP_IsPointerInHeap(MIHP_Heap* heap, void* ptr)
 		MIHP_HeapMemoryAreaHeader* currentArea = nextArea;
 		MIHP_ValidateHeapMemoryAreaHeader(heap, currentArea);
 		nextArea = currentArea->NextArea;
-		
+
 		uintptr_t ptrMin = (uintptr_t)currentArea;
 		uintptr_t ptrMax = (uintptr_t)currentArea + currentArea->AreaSize;
 
@@ -494,6 +499,7 @@ size_t MIHP_GetPtrAllocationSize(MIHP_Heap* heap, void* ptr)
 	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)((char*)ptr - segmentHeaderSize);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
+	MIHP_UnlockHeap(heap);
 	return segment->OccupiedSize;
 }
 
@@ -672,7 +678,7 @@ bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegmen
 
 	if (sourceResultingSegmentSize < MIHP_GetMinimalPayloadSize(heap) + headerSize)
 		return false;
-	
+
 	if (sourceResultingSegmentSize < sourceSegment->OccupiedSize + headerSize)
 		return false;
 
