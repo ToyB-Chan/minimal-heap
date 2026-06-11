@@ -571,13 +571,13 @@ bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
 void MIHP_LockHeap(MIHP_Heap* heap)
 {
 	if (heap->Config.HeapLock)
-		heap->Config.LockHeapFn(heap, heap->Config.HeapLock);
+		heap->Config.LockHeapFn((MIHP_HeapOpaque)heap, heap->Config.HeapLock);
 }
 
 void MIHP_UnlockHeap(MIHP_Heap* heap)
 {
 	if (heap->Config.HeapLock)
-		heap->Config.UnlockHeapFn(heap, heap->Config.HeapLock);
+		heap->Config.UnlockHeapFn((MIHP_HeapOpaque)heap, heap->Config.HeapLock);
 }
 
 MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t requestedSize)
@@ -592,14 +592,14 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 		return NULL;
 
 	size_t actualSize = 0;
-	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)heap->Config.PlatformRequestMemoryFn(heap, effectiveSize, &actualSize);
+	MIHP_HeapMemoryAreaHeader* area = (MIHP_HeapMemoryAreaHeader*)heap->Config.PlatformRequestMemoryFn((MIHP_HeapOpaque)heap, effectiveSize, &actualSize);
 	if (area == NULL)
 		return NULL;
 
 	MIHP_ASSERT(actualSize >= effectiveSize);
 	MIHP_MEMSET(area, sizeof(MIHP_HeapMemoryAreaHeader), 0);
 
-	area->InstigatingHeap = heap;
+	area->InstigatingHeap = (MIHP_HeapOpaque)heap;
 	area->AreaSize = actualSize;
 	area->Checksum = ~0;
 

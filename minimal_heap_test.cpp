@@ -12,13 +12,13 @@
 
 #define MIHP_ValidateHeap(x)
 
-void* RequestMemory(const MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize)
+void* RequestMemory(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize)
 {
 	*outActualSize = minRequestedSize;
 	return malloc(minRequestedSize);
 }
 
-bool FreeMemory(const MIHP_Heap* heap, void* ptr, size_t actualSize)
+bool FreeMemory(MIHP_HeapOpaque heap, void* ptr, size_t actualSize)
 {
 	free(ptr);
 	return true;

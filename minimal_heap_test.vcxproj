@@ -124,7 +124,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="minimal_heap_test.c" />
+    <ClCompile Include="minimal_heap_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minimal_heap.h" />

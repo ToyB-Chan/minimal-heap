@@ -21,8 +21,10 @@
 #endif
 /* */
 
-typedef void*(MIHP_PlatformRequestMemoryFn)(const struct _MIHP_Heap* heap, size_t minRequestedSize, size_t* outActualSize);
-typedef bool (MIHP_PlatformFreeMemoryFn)(const struct _MIHP_Heap* heap, void* ptr, size_t actualSize);
+typedef uintptr_t MIHP_HeapOpaque;
+
+typedef void*(MIHP_PlatformRequestMemoryFn)(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize);
+typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* ptr, size_t actualSize);
 
 typedef enum _MIHP_HEAP_CORRUPTION_ERROR
 {
@@ -33,8 +35,8 @@ typedef enum _MIHP_HEAP_CORRUPTION_ERROR
 
 typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo corruptionInfo);
 
-typedef void(MIHP_LockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
-typedef void(MIHP_UnlockHeapFn)(const struct _MIHP_Heap* heap, void* heapLock);
+typedef void(MIHP_LockHeapFn)(MIHP_HeapOpaque heap, void* heapLock);
+typedef void(MIHP_UnlockHeapFn)(MIHP_HeapOpaque heap, void* heapLock);
 
 typedef enum _MIHP_HeapValidationMode
 {
@@ -87,7 +89,7 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 	struct _MIHP_HeapSegmentHeader*		LastSuccessfulAllocationSegment;
 
 	// TODO: Change this to an InstigatingHeapUuid (opaque ptr)
-	const struct _MIHP_Heap*			InstigatingHeap; // Heap that created this area. May not always be the owning heap (in case of a merge) or safe to deference!
+	MIHP_HeapOpaque		InstigatingHeap; // Heap that created this area.
 
 	uint32_t 			Checksum; // Checksum must be the last member !
 } MIHP_HeapMemoryAreaHeader;
