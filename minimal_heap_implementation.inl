@@ -182,7 +182,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 
 			MIHP_UnlockHeap(heap);
 
-			void* data = MIHP_GetSegmentPayloadPtr(heap, targetSegment);
+			void* data = MIHP_GetHeapSegmentPayloadPtr(heap, targetSegment);
 			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
 
 			return data;
@@ -240,7 +240,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 	MIHP_LockHeap(heap);
 
-	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
 	size_t segmentHeaderSize = MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
@@ -310,7 +310,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	MIHP_LockHeap(heap);
 
-	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
 	MIHP_HeapMemoryAreaHeader* area = segment->OwningMemoryArea;
@@ -389,7 +389,7 @@ bool MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCu
 	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return false;
 
-	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	segment->CustomMetadata = metadata;
 	return true;
@@ -403,7 +403,7 @@ bool MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCu
 	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return false;
 
-	MIHP_HeapSegmentHeader* segment = MIHP_GetSegmentHeaderPtr(heap, ptr);
+	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	*outMetadata = segment->CustomMetadata;
 	return true;
@@ -746,7 +746,7 @@ bool MIHP_MergeHeapSegments(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegme
 	return true;
 }
 
-void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
+void* MIHP_GetHeapSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment)
 {
 	MIHP_ASSERT(heap);
 	MIHP_ASSERT(segment);
@@ -754,7 +754,7 @@ void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment
 	return (char*)segment + MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
 }
 
-MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr)
+MIHP_HeapSegmentHeader* MIHP_GetHeapSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr)
 {
 	MIHP_ASSERT(heap);
 	MIHP_ASSERT(payloadPtr);

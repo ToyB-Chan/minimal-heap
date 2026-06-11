@@ -168,8 +168,8 @@ bool MIHP_UninitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segme
 bool MIHP_SplitHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegment, size_t newSegmentSize, MIHP_HeapSegmentHeader** outNewSegment);
 bool MIHP_MergeHeapSegments(MIHP_Heap* heap, MIHP_HeapSegmentHeader* sourceSegment, MIHP_HeapSegmentHeader* segmentToAbsorb);
 
-void* MIHP_GetSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
-MIHP_HeapSegmentHeader* MIHP_GetSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr);
+void* MIHP_GetHeapSegmentPayloadPtr(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segment);
+MIHP_HeapSegmentHeader* MIHP_GetHeapSegmentHeaderPtr(MIHP_Heap* heap, void* payloadPtr);
 
 size_t MIHP_GetHeapAlignedSize(const MIHP_Heap* heap, size_t size);
 
