@@ -62,7 +62,7 @@ int main()
 
 		MIHP_AllocationCustomMetadata metadata = { 0 };
 		void* ptr = GetThisAddress();
-		memcpy(&metadata.data, &ptr, sizeof(void*));
+		memcpy(&metadata.AsU8, &ptr, sizeof(void*));
 
 		MIHP_SetPointerCustomMetadata(&myHeap, myptrs[i], metadata);
 		MIHP_ValidateHeap(&myHeap);
@@ -71,7 +71,7 @@ int main()
 		MIHP_GetPointerCustomMetadata(&myHeap, myptrs[i], &outMetadata);
 		void* returnPtr;
 
-		memcpy(&returnPtr, &outMetadata.data, sizeof(void*));
+		memcpy(&returnPtr, &outMetadata.AsU8, sizeof(void*));
 
 		MIHP_ASSERT(ptr == returnPtr);
 #endif

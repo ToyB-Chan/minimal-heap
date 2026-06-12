@@ -97,7 +97,13 @@ typedef struct _MIHP_HeapMemoryAreaHeader
 
 typedef struct _MIHP_AllocationCustomMetadata
 {
-	uint8_t data[16];
+	union
+	{
+		uint8_t		AsU8	[sizeof(size_t) * 2];
+		uint16_t	AsU16	[sizeof(size_t) * 1];
+		uint32_t	AsU32	[sizeof(size_t) / 2];
+		uint64_t	AsU64	[sizeof(size_t) / 4];
+	};
 } MIHP_AllocationCustomMetadata;
 
 typedef struct _MIHP_HeapSegmentHeader
