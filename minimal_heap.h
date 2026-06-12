@@ -102,6 +102,7 @@ typedef struct _MIHP_AllocationCustomMetadata
 		uint8_t		AsU8	[sizeof(size_t) * 2];
 		uint16_t	AsU16	[sizeof(size_t) * 1];
 		uint32_t	AsU32	[sizeof(size_t) / 2];
+		void*		AsPtr	[sizeof(size_t) / 2];
 		uint64_t	AsU64	[sizeof(size_t) / 4];
 	};
 } MIHP_AllocationCustomMetadata;
@@ -111,11 +112,12 @@ typedef struct _MIHP_HeapSegmentHeader
 	size_t						SegmentSize;
 	size_t						OccupiedSize;
 
+	struct _MIHP_AllocationCustomMetadata	CustomMetadata;
+
 	struct _MIHP_HeapSegmentHeader* 		NextSegment;
 	struct _MIHP_HeapSegmentHeader* 		PreviousSegment;
 	struct _MIHP_HeapMemoryAreaHeader* 		OwningMemoryArea;
 
-	struct _MIHP_AllocationCustomMetadata	CustomMetadata;
 
 	uint32_t 		Checksum; // Checksum must be the last member !
 } MIHP_HeapSegmentHeader;

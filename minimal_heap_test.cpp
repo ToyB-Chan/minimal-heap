@@ -45,7 +45,6 @@ int main()
 	config.PlatformRequestMemoryFn = RequestMemory;
 	config.PlatformFreeMemoryFn = FreeMemory;
 	config.OnHeapCorruptionDetectedFn = OnHeapCorruptionDetectedCallback;
-	config.MaxMemoryAreaSize *= 16;
 
 	config.HeapValidationMode = MIHP_HVM_MagicNumber;
 
@@ -59,19 +58,18 @@ int main()
 		myptrs[i] = malloc(size);
 #else
 		myptrs[i] = MIHP_Allocate(&myHeap, size);
+		MIHP_ASSERT(myptrs[i]);
 
 		MIHP_AllocationCustomMetadata metadata = { 0 };
 		void* ptr = GetThisAddress();
-		memcpy(&metadata.AsU8, &ptr, sizeof(void*));
+		metadata.AsPtr[0] = ptr;
 
 		MIHP_SetPointerCustomMetadata(&myHeap, myptrs[i], metadata);
 		MIHP_ValidateHeap(&myHeap);
 
 		MIHP_AllocationCustomMetadata outMetadata = { 0 };
 		MIHP_GetPointerCustomMetadata(&myHeap, myptrs[i], &outMetadata);
-		void* returnPtr;
-
-		memcpy(&returnPtr, &outMetadata.AsU8, sizeof(void*));
+		void* returnPtr = outMetadata.AsPtr[0];
 
 		MIHP_ASSERT(ptr == returnPtr);
 #endif

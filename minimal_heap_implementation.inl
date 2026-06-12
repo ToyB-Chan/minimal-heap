@@ -194,9 +194,8 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	///
 
 	size_t newAreaSize = heap->Stats.TotalSize / 4;  // growth-rate of 1.25
-
 	while (newAreaSize < size)
-		newAreaSize = MIHP_MIN(heap->Config.MaxMemoryAreaSize, newAreaSize + newAreaSize / 4);
+		newAreaSize = newAreaSize + newAreaSize / 4;
 
 	MIHP_HeapMemoryAreaHeader* newArea = MIHP_CreateHeapMemoryArea(heap, newAreaSize);
 	if (newArea == NULL)
