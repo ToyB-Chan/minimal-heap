@@ -124,7 +124,7 @@ typedef struct _MIHP_HeapSegmentHeader
 
 typedef struct _MIHP_HeapCorruptionInfo
 {
-	MIHP_HeapCorruptionError 		Type;
+	MIHP_HeapCorruptionError 		Error;
 	const void* 					Ptr;
 	uint32_t 						ExpectedValue;
 	uint32_t 						ActualValue;
