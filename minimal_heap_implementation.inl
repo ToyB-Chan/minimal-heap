@@ -318,7 +318,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	if (segment->OccupiedSize == 0)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo = { 0 };
-		corruptionInfo.Type = MIHP_HCE_DoubleFree;
+		corruptionInfo.Error = MIHP_HCE_DoubleFree;
 		corruptionInfo.Ptr = ptr;
 
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
@@ -829,7 +829,7 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMem
 	if (area->Checksum != newChecksum)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo;
-		corruptionInfo.Type = MIHP_HCE_MemoryAreaChecksumMismatch;
+		corruptionInfo.Error = MIHP_HCE_MemoryAreaChecksumMismatch;
 		corruptionInfo.Ptr = area;
 		corruptionInfo.ExpectedValue = area->Checksum;
 		corruptionInfo.ActualValue = newChecksum;
@@ -858,7 +858,7 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 	if (segment->Checksum != newChecksum)
 	{
 		MIHP_HeapCorruptionInfo corruptionInfo;
-		corruptionInfo.Type = MIHP_HCE_SegmentChecksumMismatch;
+		corruptionInfo.Error = MIHP_HCE_SegmentChecksumMismatch;
 		corruptionInfo.Ptr = segment;
 		corruptionInfo.ExpectedValue = segment->Checksum;
 		corruptionInfo.ActualValue = newChecksum;
