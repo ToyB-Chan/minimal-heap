@@ -2,7 +2,7 @@
 #define __MINIMAL_HEAP_H__
 
 #define MIHP_VERSION_MAJOR 1
-#define MIHP_VERSION_MINOR 9
+#define MIHP_VERSION_MINOR 10
 
 #include <stddef.h>
 #include <stdint.h>
