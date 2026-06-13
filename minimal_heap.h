@@ -18,7 +18,7 @@
 #endif
 
 #ifndef MIHP_MEMSET
-	#define MIHP_MEMSET(Ptr, Size, Val) do { for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val; } while(0);
+	#define MIHP_MEMSET(Ptr, Val, Size) do { for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val; } while(0);
 #endif
 /* */
 
@@ -76,7 +76,9 @@ typedef struct _MIHP_HeapConfig
 	uint8_t					MinHeapTraversalPercentToExpand;			// Minimal integer percent of the heap traversed before expanding the heap
 	
 	size_t					AllocationAlignment;		// Must be power of two and at least sizeof(size_t)
-	uint8_t					AllocationInitialValue;		// Initial value the returned blocks are to be filled with
+
+	uint8_t					AllocateFillValue;			// Initial value the returned blocks are to be filled with
+	uint8_t					FreeFillValue;				// Value freed blocks are to be filled with
 
 	MIHP_HeapValidationMode	HeapValidationMode;
 

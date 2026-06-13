@@ -22,7 +22,8 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	cfg.MinHeapTraversalPercentToExpand = 80;
 
 	cfg.AllocationAlignment = 16;
-	cfg.AllocationInitialValue = 0xbe;
+	cfg.AllocateFillValue = 0xbe;
+	cfg.FreeFillValue = 0xee;
 
 	cfg.HeapValidationMode = MIHP_HVM_MagicNumber;
 
@@ -73,7 +74,7 @@ MIHP_HeapError MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 			return MIHP_HE_BadConfig;
 	}
 
-	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
+	MIHP_MEMSET(heap, 0, sizeof(MIHP_Heap));
 
 	heap->Config = config;
 	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinMemoryAreaSize);
@@ -112,7 +113,7 @@ MIHP_HeapError MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 		MIHP_DestroyHeapMemoryArea(heap, currentArea);
 	}
 
-	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
+	MIHP_MEMSET(heap, 0, sizeof(MIHP_Heap));
 	return MIHP_HE_Success;
 }
 
@@ -190,7 +191,7 @@ MIHP_HeapResult MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			MIHP_UnlockHeap(heap);
 
 			void* data = MIHP_GetHeapSegmentPayloadPtr(heap, targetSegment);
-			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
+			MIHP_MEMSET(data, heap->Config.AllocateFillValue, size);
 
 			return MIHP_MAKE_RESULT(data, MIHP_HE_Success);
 		} while (nextSegment != currentArea->LastSuccessfulAllocationSegment);
@@ -255,7 +256,7 @@ MIHP_HeapResult MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		size_t maxPayloadSize = segment->SegmentSize - segmentHeaderSize;
 		if (newSize <= maxPayloadSize)
 		{
-			MIHP_MEMSET((char*)ptr + segment->OccupiedSize, newSize - segment->OccupiedSize, heap->Config.AllocationInitialValue);
+			MIHP_MEMSET((char*)ptr + segment->OccupiedSize, heap->Config.AllocateFillValue, newSize - segment->OccupiedSize);
 			segment->OccupiedSize = newSize;
 			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
@@ -289,6 +290,8 @@ MIHP_HeapResult MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 	}
 	else if (newSize < segment->OccupiedSize)
 	{
+		MIHP_MEMSET((char*)ptr + newSize, heap->Config.FreeFillValue, segment->OccupiedSize - newSize);
+
 		segment->OccupiedSize = newSize;
 		segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
@@ -332,6 +335,8 @@ MIHP_HeapError MIHP_Free(MIHP_Heap* heap, void* ptr)
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
 			heap->Config.OnHeapCorruptionDetectedFn(heap, corruptionInfo);
 	}
+
+	MIHP_MEMSET(ptr, heap->Config.FreeFillValue, segment->OccupiedSize);
 
 	segment->OccupiedSize = 0;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
@@ -460,7 +465,7 @@ MIHP_HeapError MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	sourceHeap->Stats.TotalSize += heapToAbsorb->Stats.TotalSize;
 
 	MIHP_UnlockHeap(heapToAbsorb);
-	MIHP_MEMSET(heapToAbsorb, sizeof(MIHP_Heap), 0);
+	MIHP_MEMSET(heapToAbsorb, 0, sizeof(MIHP_Heap));
 
 	sourceEndArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea);
 	sourceEndArea->NextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea->NextArea);
@@ -605,7 +610,7 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 		return NULL;
 
 	MIHP_ASSERT(actualSize >= effectiveSize);
-	MIHP_MEMSET(area, sizeof(MIHP_HeapMemoryAreaHeader), 0);
+	MIHP_MEMSET(area, 0, sizeof(MIHP_HeapMemoryAreaHeader));
 
 	area->InstigatingHeap = (MIHP_HeapOpaque)heap;
 	area->AreaSize = actualSize;
@@ -649,7 +654,7 @@ MIHP_HeapSegmentHeader* MIHP_InitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapMem
 
 	MIHP_HeapSegmentHeader* segment = (MIHP_HeapSegmentHeader*)segmentStart;
 
-	MIHP_MEMSET(segment, sizeof(MIHP_HeapSegmentHeader), 0);
+	MIHP_MEMSET(segment, 0, sizeof(MIHP_HeapSegmentHeader));
 
 	segment->SegmentSize = segmentSize;
 	segment->OwningMemoryArea = area;
@@ -674,7 +679,7 @@ bool MIHP_UninitializeHeapSegment(MIHP_Heap* heap, MIHP_HeapSegmentHeader* segme
 	segment->OwningMemoryArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, segment->OwningMemoryArea);
 	heap->Stats.NumTotalSegments--;
 
-	MIHP_MEMSET(segment, sizeof(MIHP_HeapSegmentHeader), 0);
+	MIHP_MEMSET(segment, 0, sizeof(MIHP_HeapSegmentHeader));
 
 	return true;
 }
