@@ -4,6 +4,12 @@
 
 #define MIHP_IS_PO2(Val) (Val != 0 && (Val & (Val - 1)) == 0)
 
+#ifdef __cplusplus
+	#define MIHP_MAKE_RESULT(ptr, Err) MIHP_HeapResult{ ptr, Err }
+#else
+	#define MIHP_MAKE_RESULT(ptr, Err) (MIHP_HeapResult){ ptr, Err }
+#endif
+
 MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 {
 	MIHP_HeapConfig cfg = { 0 };
@@ -23,48 +29,48 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	return cfg;
 }
 
-bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
+MIHP_HeapError MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 {
 	if (heap == NULL)
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	if (MIHP_IsHeapInitialized(heap))
-		return false;
+		return MIHP_HE_InvalidOperation;
 
 	if (config.PlatformRequestMemoryFn == NULL)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.PlatformFreeMemoryFn == NULL)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.MaxHeapSize < config.MinMemoryAreaSize)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.MinTotalTraversalsBeforeHeapExpansion < 10)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.MinHeapTraversalPercentToExpand > 100)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.AllocationAlignment < sizeof(size_t))
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (!MIHP_IS_PO2(config.AllocationAlignment))
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.MinMemoryAreaSize % config.AllocationAlignment != 0)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.MaxMemoryAreaSize % config.AllocationAlignment != 0)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (config.HeapLock != NULL)
 	{
 		if (config.LockHeapFn == NULL)
-			return false;
+			return MIHP_HE_BadConfig;
 
 		if (config.UnlockHeapFn == NULL)
-			return false;
+			return MIHP_HE_BadConfig;
 	}
 
 	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
@@ -72,12 +78,12 @@ bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 	heap->Config = config;
 	heap->FirstArea = MIHP_CreateHeapMemoryArea(heap, config.MinMemoryAreaSize);
 	if (heap->FirstArea == NULL)
-		return false;
+		return MIHP_HE_OutOfMemory;
 
 	heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
 	heap->FirstArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(heap, heap->FirstArea);
-	return true;
+	return MIHP_HE_Success;
 }
 
 bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
@@ -88,13 +94,13 @@ bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
 	return heap->FirstArea != NULL;
 }
 
-bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
+MIHP_HeapError MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 {
 	if (!MIHP_IsHeapInitialized(heap))
-		return true;
+		return MIHP_HE_InvalidOperation;
 
 	if (!force && heap->Stats.NumTotalOccupiedSegments > 0)
-		return false;
+		return MIHP_HE_InvalidOperation;
 
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea)
@@ -107,19 +113,19 @@ bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 	}
 
 	MIHP_MEMSET(heap, sizeof(MIHP_Heap), 0);
-	return true;
+	return MIHP_HE_Success;
 }
 
-void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
+MIHP_HeapResult MIHP_Allocate(MIHP_Heap* heap, size_t size)
 {
 	if (!MIHP_IsHeapInitialized(heap))
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_InvalidHeap);
 
 	if (size == 0)
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_Success);
 
 	if (size > MIHP_GetMaximalPayloadSize(heap))
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_OutOfMemory);
 
 	MIHP_LockHeap(heap);
 
@@ -186,7 +192,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 			void* data = MIHP_GetHeapSegmentPayloadPtr(heap, targetSegment);
 			MIHP_MEMSET(data, size, heap->Config.AllocationInitialValue);
 
-			return data;
+			return MIHP_MAKE_RESULT(data, MIHP_HE_Success);
 		} while (nextSegment != currentArea->LastSuccessfulAllocationSegment);
 	} while (nextArea != heap->LastSuccessfulAllocationArea);
 
@@ -202,7 +208,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	if (newArea == NULL)
 	{
 		MIHP_UnlockHeap(heap);
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_OutOfMemory);
 	}
 
 	// Insert new area one after first area, since the first area is always kept and should be the smallest
@@ -224,19 +230,19 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	return MIHP_Allocate(heap, size);
 }
 
-void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
+MIHP_HeapResult MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 {
 	if (newSize == 0)
 	{
 		MIHP_Free(heap, ptr);
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_Success);
 	}
 
 	if (ptr == NULL)
 		return MIHP_Allocate(heap, newSize);
 
 	if (!MIHP_IsAddressInHeap(heap, ptr))
-		return NULL;
+		return MIHP_MAKE_RESULT(NULL, MIHP_HE_InvalidHeap);
 
 	MIHP_LockHeap(heap);
 
@@ -254,7 +260,7 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
 			MIHP_UnlockHeap(heap);
-			return ptr;
+			return MIHP_MAKE_RESULT(NULL, MIHP_HE_Success);
 		}
 
 		if (segment->NextSegment)
@@ -269,17 +275,17 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 
 		MIHP_UnlockHeap(heap);
 
-		void* newPtr = MIHP_Allocate(heap, newSize);
-		if (!newPtr)
-			return NULL;
+		MIHP_HeapResult newPtrResult = MIHP_Allocate(heap, newSize);
+		if (newPtrResult.Error != MIHP_HE_Success)
+			return newPtrResult;
 
 		for (size_t i = 0; i < segment->OccupiedSize; i++)
-			((char*)newPtr)[i] = ((char*)ptr)[i];
+			((char*)newPtrResult.Ptr)[i] = ((char*)ptr)[i];
 
-		MIHP_SetPointerCustomMetadata(heap, newPtr, segment->CustomMetadata);
+		MIHP_SetPointerCustomMetadata(heap, newPtrResult.Ptr, segment->CustomMetadata);
 
 		MIHP_Free(heap, ptr);
-		return newPtr;
+		return newPtrResult;
 	}
 	else if (newSize < segment->OccupiedSize)
 	{
@@ -296,17 +302,18 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 			MIHP_MergeHeapSegments(heap, newSplitSegment, newSplitSegment->NextSegment); // Try directly merging with the adjacent segment
 
 		MIHP_UnlockHeap(heap);
-		return ptr;
+		return MIHP_MAKE_RESULT(ptr, MIHP_HE_Success);
 	}
 
+	// if we are its CurrentSize == NewSize
 	MIHP_UnlockHeap(heap);
-	return ptr;
+	return MIHP_MAKE_RESULT(ptr, MIHP_HE_Success);
 }
 
-bool MIHP_Free(MIHP_Heap* heap, void* ptr)
+MIHP_HeapError MIHP_Free(MIHP_Heap* heap, void* ptr)
 {
 	if (!MIHP_IsAddressInHeap(heap, ptr))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	MIHP_LockHeap(heap);
 
@@ -326,7 +333,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 			heap->Config.OnHeapCorruptionDetectedFn(heap, corruptionInfo);
 
 		MIHP_UnlockHeap(heap);
-		return false;
+		return MIHP_HE_InvalidOperation;
 	}
 
 	segment->OccupiedSize = 0;
@@ -362,7 +369,7 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 				heap->LastSuccessfulAllocationArea = heap->FirstArea;
 
 			MIHP_UnlockHeap(heap);
-			return true;
+			return MIHP_HE_Success;
 		}
 	}
 
@@ -381,56 +388,56 @@ bool MIHP_Free(MIHP_Heap* heap, void* ptr)
 	}
 
 	MIHP_UnlockHeap(heap);
-	return true;
+	return MIHP_HE_Success;
 }
 
-bool MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata)
+MIHP_HeapError MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata)
 {
 	if (!MIHP_IsAddressInHeap(heap, ptr))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	segment->CustomMetadata = metadata;
-	return true;
+	return MIHP_HE_Success;
 }
 
-bool MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata)
+MIHP_HeapError MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata)
 {
 	if (outMetadata == NULL)
-		return false;
+		return MIHP_HE_InvalidParameter;
 
 	if (!MIHP_IsAddressInHeap(heap, ptr))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	*outMetadata = segment->CustomMetadata;
-	return true;
+	return MIHP_HE_Success;
 }
 
-bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
+MIHP_HeapError MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 {
 	if (!MIHP_IsHeapInitialized(sourceHeap))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	if (!MIHP_IsHeapInitialized(heapToAbsorb))
-		return false;
+		return MIHP_HE_InvalidParameter;
 
 	if (sourceHeap->Config.PlatformFreeMemoryFn != heapToAbsorb->Config.PlatformFreeMemoryFn)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (sourceHeap->Config.AllocationAlignment != heapToAbsorb->Config.AllocationAlignment)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (sourceHeap->Config.MinMemoryAreaSize > heapToAbsorb->Config.MinMemoryAreaSize)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (sourceHeap->Config.MaxMemoryAreaSize < heapToAbsorb->Config.MaxMemoryAreaSize)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	if (sourceHeap->Config.HeapValidationMode != heapToAbsorb->Config.HeapValidationMode)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	MIHP_LockHeap(sourceHeap);
 	MIHP_LockHeap(heapToAbsorb);
@@ -461,7 +468,7 @@ bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 	sourceEndArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea);
 	sourceEndArea->NextArea->Checksum = MIHP_GenerateHeapMemoryAreaChecksum(sourceHeap, sourceEndArea->NextArea);
 	MIHP_UnlockHeap(sourceHeap);
-	return true;
+	return MIHP_HE_Success;
 }
 
 bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr)
@@ -494,10 +501,13 @@ bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr)
 	return false;
 }
 
-size_t MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr)
+MIHP_HeapError MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr, size_t* outSize)
 {
 	if (!MIHP_IsAddressInHeap(heap, ptr))
-		return 0;
+		return MIHP_HE_InvalidHeap;
+
+	if (outSize == NULL)
+		return MIHP_HE_InvalidParameter;
 
 	MIHP_LockHeap(heap);
 
@@ -506,16 +516,17 @@ size_t MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr)
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 
 	MIHP_UnlockHeap(heap);
-	return segment->OccupiedSize;
+	*outSize = segment->OccupiedSize;
+	return MIHP_HE_Success;
 }
 
-bool MIHP_ValidateHeap(MIHP_Heap* heap)
+MIHP_HeapError MIHP_ValidateHeap(MIHP_Heap* heap)
 {
 	if (!MIHP_IsHeapInitialized(heap))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
-		return false;
+		return MIHP_HE_BadConfig;
 
 	MIHP_LockHeap(heap);
 
@@ -536,16 +547,16 @@ bool MIHP_ValidateHeap(MIHP_Heap* heap)
 	}
 
 	MIHP_UnlockHeap(heap);
-	return true;
+	return MIHP_HE_Success;
 }
 
-bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
+MIHP_HeapError MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
 {
 	if (!MIHP_IsHeapInitialized(heap))
-		return false;
+		return MIHP_HE_InvalidHeap;
 
 	if (callback == NULL)
-		return false;
+		return MIHP_HE_InvalidParameter;
 
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea != NULL)
@@ -565,7 +576,7 @@ bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
 		}
 	}
 
-	return true;
+	return MIHP_HE_Success;
 }
 
 void MIHP_LockHeap(MIHP_Heap* heap)

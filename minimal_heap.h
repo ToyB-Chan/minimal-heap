@@ -25,7 +25,7 @@
 typedef uintptr_t MIHP_HeapOpaque;
 
 typedef void*(MIHP_PlatformRequestMemoryFn)(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize);
-typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* ptr, size_t actualSize);
+typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* Ptr, size_t actualSize);
 
 typedef enum _MIHP_HeapCorruptionError
 {
@@ -45,6 +45,22 @@ typedef enum _MIHP_HeapValidationMode
 	MIHP_HVM_MagicNumber = 1,
 	MIHP_HVM_Checksum = 2
 } MIHP_HeapValidationMode;
+
+typedef enum _MIHP_HeapError
+{
+	MIHP_HE_Success = 0,
+	MIHP_HE_InvalidHeap = 1,
+	MIHP_HE_BadConfig = 2,
+	MIHP_HE_OutOfMemory = 3,
+	MIHP_HE_InvalidOperation = 4,
+	MIHP_HE_InvalidParameter = 5
+} MIHP_HeapError;
+
+typedef struct _MIHP_HeapResult
+{
+	void* Ptr;
+	MIHP_HeapError Error;
+} MIHP_HeapResult;
 
 typedef struct _MIHP_HeapConfig
 {
@@ -141,26 +157,26 @@ typedef struct _MIHP_Heap
 /* API Interface */
 MIHP_HeapConfig MIHP_MakeDefaultConfigPreset();
 
-bool MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config);
+MIHP_HeapError MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config);
 bool MIHP_IsHeapInitialized(const MIHP_Heap* heap);
-bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force);
+MIHP_HeapError MIHP_UninitializeHeap(MIHP_Heap* heap, bool force);
 
-void* MIHP_Allocate(MIHP_Heap* heap, size_t size);
-void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
-bool MIHP_Free(MIHP_Heap* heap, void* ptr);
+MIHP_HeapResult MIHP_Allocate(MIHP_Heap* heap, size_t size);
+MIHP_HeapResult MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize);
+MIHP_HeapError MIHP_Free(MIHP_Heap* heap, void* ptr);
 
-bool MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata);
-bool MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata);
+MIHP_HeapError MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata metadata);
+MIHP_HeapError MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_AllocationCustomMetadata* outMetadata);
 
-bool MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
+MIHP_HeapError MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb);
 
 bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr);
-size_t MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr);
-bool MIHP_ValidateHeap(MIHP_Heap* heap);
+MIHP_HeapError MIHP_GetPointerAllocationSize(MIHP_Heap* heap, void* ptr, size_t* outSize);
+MIHP_HeapError MIHP_ValidateHeap(MIHP_Heap* heap);
 
 typedef void(MIHP_WalkHeapCallbackFn)(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area, const MIHP_HeapSegmentHeader* segment);
 
-bool MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback);
+MIHP_HeapError MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback);
 /* */
 
 /* Internals */
