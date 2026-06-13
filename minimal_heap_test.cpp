@@ -54,7 +54,7 @@ void BootstrapHeap()
 		MIHP_Heap tmpHeap = { 0 };
 		MIHP_InitializeHeap(&tmpHeap, config);
 
-		MIHP_Heap* bootstrappedHeap = (MIHP_Heap*)MIHP_Allocate(&tmpHeap, sizeof(MIHP_Heap));
+		bootstrappedHeap = (MIHP_Heap*)MIHP_Allocate(&tmpHeap, sizeof(MIHP_Heap));
 		memset(bootstrappedHeap, 0, sizeof(MIHP_Heap));
 		MIHP_InitializeHeap(bootstrappedHeap, config);
 
