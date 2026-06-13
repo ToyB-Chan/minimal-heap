@@ -38,8 +38,34 @@ void* GetThisAddress()
 	return _ReturnAddress();
 }
 
+void BootstrapHeap()
+{
+	MIHP_HeapConfig config = MIHP_MakeDefaultConfigPreset();
+
+	config.PlatformRequestMemoryFn = RequestMemory;
+	config.PlatformFreeMemoryFn = FreeMemory;
+	config.OnHeapCorruptionDetectedFn = OnHeapCorruptionDetectedCallback;
+
+	config.HeapValidationMode = MIHP_HVM_MagicNumber;
+
+	MIHP_Heap* tmpHeap = new MIHP_Heap();
+	memset(tmpHeap, 0, sizeof(MIHP_Heap));
+	MIHP_InitializeHeap(tmpHeap, config);
+
+	MIHP_Heap* bootstrappedHeap = (MIHP_Heap*)MIHP_Allocate(tmpHeap, sizeof(MIHP_Heap));
+	memset(bootstrappedHeap, 0, sizeof(MIHP_Heap));
+	MIHP_InitializeHeap(bootstrappedHeap, config);
+
+	MIHP_MergeHeaps(bootstrappedHeap, tmpHeap);
+	delete tmpHeap;
+	//MIHP_Free(bootstrappedHeap, bootstrappedHeap);
+	__debugbreak();
+}
+
 int main()
 {
+	BootstrapHeap();
+
 	MIHP_HeapConfig config = MIHP_MakeDefaultConfigPreset();
 
 	config.PlatformRequestMemoryFn = RequestMemory;
