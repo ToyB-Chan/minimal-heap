@@ -328,9 +328,11 @@ MIHP_HeapError MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 	if (segment->OccupiedSize == 0)
 	{
-		MIHP_HeapCorruptionInfo corruptionInfo = { 0 };
+		MIHP_HeapCorruptionInfo corruptionInfo;
 		corruptionInfo.Error = MIHP_HCE_DoubleFree;
 		corruptionInfo.Ptr = ptr;
+		corruptionInfo.ExpectedValue = 0;
+		corruptionInfo.ActualValue = 0;
 
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
 			heap->Config.OnHeapCorruptionDetectedFn(heap, corruptionInfo);

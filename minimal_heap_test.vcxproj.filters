@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="minimal_heap_test.cpp">
+    <ClCompile Include="minimal_heap_test.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
