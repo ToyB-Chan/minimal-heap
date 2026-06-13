@@ -189,6 +189,7 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMem
 void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmentHeader* segment);
 
 size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap);
+size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap);
 /* */
 
 #if MIHP_IMPLEMENTATION

@@ -1,3 +1,4 @@
+#include "minimal_heap.h"
 #define MIHP_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIHP_MAX(A, B) ((A) > (B) ? (A) : (B))
 
@@ -117,7 +118,7 @@ void* MIHP_Allocate(MIHP_Heap* heap, size_t size)
 	if (size == 0)
 		return NULL;
 
-	if (size > heap->Config.MaxMemoryAreaSize)
+	if (size > MIHP_GetMaximalPayloadSize(heap))
 		return NULL;
 
 	MIHP_LockHeap(heap);
@@ -870,4 +871,12 @@ void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmen
 size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
 {
 	return MIHP_MAX(sizeof(MIHP_HeapSegmentHeader), heap->Config.AllocationAlignment);
+}
+
+inline size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap)
+{
+	size_t maxPayloadSize = heap->Config.MaxMemoryAreaSize;
+	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(_MIHP_HeapMemoryAreaHeader));
+	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
+	return maxPayloadSize;
 }
