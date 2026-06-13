@@ -54,7 +54,7 @@ void BootstrapHeap()
 		MIHP_Heap tmpHeap = { 0 };
 		MIHP_InitializeHeap(&tmpHeap, config);
 
-		bootstrappedHeap = (MIHP_Heap*)MIHP_Allocate(&tmpHeap, sizeof(MIHP_Heap));
+		bootstrappedHeap = (MIHP_Heap*)MIHP_Allocate(&tmpHeap, sizeof(MIHP_Heap)).Ptr;
 		memset(bootstrappedHeap, 0, sizeof(MIHP_Heap));
 		MIHP_InitializeHeap(bootstrappedHeap, config);
 
@@ -86,7 +86,7 @@ int main()
 #if USE_MALLOC
 		myptrs[i] = malloc(size);
 #else
-		myptrs[i] = MIHP_Allocate(&myHeap, size);
+		myptrs[i] = MIHP_Allocate(&myHeap, size).Ptr;
 		MIHP_ASSERT(myptrs[i]);
 
 		MIHP_AllocationCustomMetadata metadata = { 0 };
@@ -135,7 +135,7 @@ int main()
 #if USE_MALLOC
 			myptrs[i] = realloc(myptrs[i], size);
 #else
-			myptrs[i] = MIHP_Reallocate(&myHeap, myptrs[i], size);
+			myptrs[i] = MIHP_Reallocate(&myHeap, myptrs[i], size).Ptr;
 			MIHP_ValidateHeap(&myHeap);
 
 			
@@ -155,7 +155,7 @@ int main()
 #if USE_MALLOC
 			myptrs[i] = malloc(size);
 #else
-			myptrs[i] = MIHP_Allocate(&myHeap, size);
+			myptrs[i] = MIHP_Allocate(&myHeap, size).Ptr;
 			MIHP_ValidateHeap(&myHeap);
 
 
