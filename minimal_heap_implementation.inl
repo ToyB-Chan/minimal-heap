@@ -289,11 +289,11 @@ void* MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 		size_t alignedNewSize = MIHP_GetHeapAlignedSize(heap, newSize);
 		size_t newSplitSegmentSize = segment->SegmentSize - segmentHeaderSize - alignedNewSize;
 
-		MIHP_HeapSegmentHeader* newSpittedSegment = NULL;
-		MIHP_SplitHeapSegment(heap, segment, newSplitSegmentSize, &newSpittedSegment);
+		MIHP_HeapSegmentHeader* newSplitSegment = NULL;
+		MIHP_SplitHeapSegment(heap, segment, newSplitSegmentSize, &newSplitSegment);
 
-		if (newSpittedSegment && newSpittedSegment->NextSegment)
-			MIHP_MergeHeapSegments(heap, newSpittedSegment, newSpittedSegment->NextSegment); // Try directly merging with the adjacent segment
+		if (newSplitSegment && newSplitSegment->NextSegment)
+			MIHP_MergeHeapSegments(heap, newSplitSegment, newSplitSegment->NextSegment); // Try directly merging with the adjacent segment
 
 		MIHP_UnlockHeap(heap);
 		return ptr;
@@ -873,7 +873,7 @@ size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
 	return MIHP_MAX(sizeof(MIHP_HeapSegmentHeader), heap->Config.AllocationAlignment);
 }
 
-inline size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap)
+size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap)
 {
 	size_t maxPayloadSize = heap->Config.MaxMemoryAreaSize;
 	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapMemoryAreaHeader));
