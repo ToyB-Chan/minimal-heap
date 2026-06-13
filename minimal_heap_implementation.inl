@@ -90,7 +90,7 @@ bool MIHP_IsHeapInitialized(const MIHP_Heap* heap)
 bool MIHP_UninitializeHeap(MIHP_Heap* heap, bool force)
 {
 	if (!MIHP_IsHeapInitialized(heap))
-		return false;
+		return true;
 
 	if (!force && heap->Stats.NumTotalOccupiedSegments > 0)
 		return false;
