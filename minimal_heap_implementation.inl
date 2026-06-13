@@ -12,7 +12,7 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	cfg.MaxMemoryAreaSize = 4096 * 4096 * 128ull;
 	cfg.MaxHeapSize = ~0;
 
-	cfg.MinTotalTraversalsBeforeHeapExpansion = 10'000;
+	cfg.MinTotalTraversalsBeforeHeapExpansion = 10000;
 	cfg.MinHeapTraversalPercentToExpand = 80;
 
 	cfg.AllocationAlignment = 16;
@@ -876,7 +876,7 @@ size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap)
 inline size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap)
 {
 	size_t maxPayloadSize = heap->Config.MaxMemoryAreaSize;
-	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(_MIHP_HeapMemoryAreaHeader));
+	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapMemoryAreaHeader));
 	maxPayloadSize -= MIHP_GetHeapAlignedSize(heap, sizeof(MIHP_HeapSegmentHeader));
 	return maxPayloadSize;
 }
