@@ -331,9 +331,6 @@ MIHP_HeapError MIHP_Free(MIHP_Heap* heap, void* ptr)
 
 		if (heap->Config.OnHeapCorruptionDetectedFn != NULL)
 			heap->Config.OnHeapCorruptionDetectedFn(heap, corruptionInfo);
-
-		MIHP_UnlockHeap(heap);
-		return MIHP_HE_InvalidOperation;
 	}
 
 	segment->OccupiedSize = 0;
