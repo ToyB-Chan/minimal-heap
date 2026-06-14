@@ -34,6 +34,9 @@ typedef enum _MIHP_HeapCorruptionError
 	MIHP_HCE_DoubleFree = 2
 } MIHP_HeapCorruptionError;
 
+struct _MIHP_Heap;
+struct _MIHP_HeapCorruptionInfo;
+
 typedef void (MIHP_OnHeapCorruptionDetectedFn)(const struct _MIHP_Heap* heap, struct _MIHP_HeapCorruptionInfo corruptionInfo);
 
 typedef void(MIHP_LockHeapFn)(MIHP_HeapOpaque heap, void* heapLock);
