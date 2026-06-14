@@ -25,7 +25,7 @@
 typedef uintptr_t MIHP_HeapOpaque;
 
 typedef void*(MIHP_PlatformRequestMemoryFn)(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize);
-typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* Ptr, size_t actualSize);
+typedef bool (MIHP_PlatformFreeMemoryFn)(MIHP_HeapOpaque heap, void* ptr, size_t actualSize);
 
 typedef enum _MIHP_HeapCorruptionError
 {
