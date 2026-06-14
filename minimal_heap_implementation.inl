@@ -610,7 +610,10 @@ MIHP_HeapMemoryAreaHeader* MIHP_CreateHeapMemoryArea(MIHP_Heap* heap, size_t req
 	if (area == NULL)
 		return NULL;
 
+	MIHP_ASSERT((uintptr_t)area % heap->Config.AllocationAlignment == 0);
+	MIHP_ASSERT(actualSize % heap->Config.AllocationAlignment == 0);
 	MIHP_ASSERT(actualSize >= effectiveSize);
+
 	MIHP_MEMSET(area, 0, sizeof(MIHP_HeapMemoryAreaHeader));
 
 	area->InstigatingHeap = (MIHP_HeapOpaque)heap;

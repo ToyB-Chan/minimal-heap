@@ -10,7 +10,7 @@
 
 #define USE_MALLOC 0
 
-//#define MIHP_ValidateHeap(x)
+#define MIHP_ValidateHeap(x)
 
 void* RequestMemory(MIHP_HeapOpaque heap, size_t minRequestedSize, size_t* outActualSize)
 {
@@ -29,7 +29,7 @@ void OnHeapCorruptionDetectedCallback(const MIHP_Heap* heap, MIHP_HeapCorruption
 	__debugbreak();
 }
 
-#define NUM_ALLOCATIONS (4096)
+#define NUM_ALLOCATIONS (4096 * 4096)
 
 void* myptrs[NUM_ALLOCATIONS] = { 0 };
 
