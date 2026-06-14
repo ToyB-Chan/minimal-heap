@@ -210,7 +210,7 @@ size_t MIHP_GetMinimalPayloadSize(const MIHP_Heap* heap);
 size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap);
 /* */
 
-#if MIHP_IMPLEMENTATION
+#ifdef MIHP_IMPLEMENTATION
 	#include "minimal_heap_implementation.inl"
 #endif
 

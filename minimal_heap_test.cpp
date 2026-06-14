@@ -1,4 +1,4 @@
-#define MIHP_IMPLEMENTATION 1
+#define MIHP_IMPLEMENTATION
 #include "minimal_heap.h"
 
 #include <stdlib.h>
