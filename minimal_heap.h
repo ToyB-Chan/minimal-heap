@@ -2,7 +2,7 @@
 #define __MINIMAL_HEAP_H__
 
 #define MIHP_VERSION_MAJOR 1
-#define MIHP_VERSION_MINOR 11
+#define MIHP_VERSION_MINOR 12
 
 #include <stddef.h>
 #include <stdint.h>
@@ -121,10 +121,10 @@ typedef struct _MIHP_AllocationCustomMetadata
 	union
 	{
 		uint8_t		AsU8	[sizeof(size_t) * 2];
-		uint16_t	AsU16	[sizeof(size_t) * 1];
-		uint32_t	AsU32	[sizeof(size_t) / 2];
-		void*		AsPtr	[sizeof(size_t) / 2];
-		uint64_t	AsU64	[sizeof(size_t) / 4];
+		uint16_t	AsU16	[(sizeof(size_t) * 2) / sizeof(uint16_t)];
+		uint32_t	AsU32	[(sizeof(size_t) * 2) / sizeof(uint32_t)];
+		void*		AsPtr	[(sizeof(size_t) * 2) / sizeof(void*)];
+		uint64_t	AsU64	[(sizeof(size_t) * 2) / sizeof(uint64_t)];
 	};
 } MIHP_AllocationCustomMetadata;
 
