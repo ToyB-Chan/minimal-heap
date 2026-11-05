@@ -8,10 +8,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifndef MIHP_IMPLEMENTATION
-	#define MIHP_IMPLEMENTATION 0
-#endif
-
 /* Defines to be configured by the library user */
 #ifndef MIHP_ASSERT
 	#define MIHP_ASSERT(Condition) while(1) { if (Condition) break; *(volatile char*)(0x0) = 0; }

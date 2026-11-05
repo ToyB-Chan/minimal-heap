@@ -24,7 +24,7 @@ MIHP_HeapConfig MIHP_MakeDefaultConfigPreset()
 	cfg.AllocateFillValue = 0xbe;
 	cfg.FreeFillValue = 0xee;
 
-	cfg.HeapValidationMode = MIHP_HVM_MagicNumber;
+	cfg.HeapValidationMode = MIHP_HVM_None;
 
 	return cfg;
 }
@@ -41,6 +41,12 @@ MIHP_HeapError MIHP_InitializeHeap(MIHP_Heap* heap, MIHP_HeapConfig config)
 		return MIHP_HE_BadConfig;
 
 	if (config.PlatformFreeMemoryFn == NULL)
+		return MIHP_HE_BadConfig;
+
+	if (config.OnHeapCorruptionDetectedFn == NULL && config.HeapValidationMode != MIHP_HVM_None)
+		return MIHP_HE_BadConfig;
+
+	if (config.MinMemoryAreaSize < MIHP_GetMinimalPayloadSize(heap) * 2)
 		return MIHP_HE_BadConfig;
 
 	if (config.MaxHeapSize < config.MinMemoryAreaSize)
@@ -260,7 +266,7 @@ MIHP_HeapResult MIHP_Reallocate(MIHP_Heap* heap, void* ptr, size_t newSize)
 			segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 
 			MIHP_UnlockHeap(heap);
-			return MIHP_MAKE_RESULT(NULL, MIHP_HE_Success);
+			return MIHP_MAKE_RESULT(ptr, MIHP_HE_Success);
 		}
 
 		if (segment->NextSegment)
@@ -402,6 +408,7 @@ MIHP_HeapError MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_Al
 	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	segment->CustomMetadata = metadata;
+	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
 	return MIHP_HE_Success;
 }
 
@@ -829,9 +836,6 @@ uint32_t MIHP_GenerateHeapSegmentChecksum(const MIHP_Heap* heap, const MIHP_Heap
 
 void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMemoryAreaHeader* area)
 {
-	if (heap->Config.OnHeapCorruptionDetectedFn == NULL)
-		return;
-
 	uint32_t newChecksum;
 
 	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
@@ -858,9 +862,6 @@ void MIHP_ValidateHeapMemoryAreaHeader(const MIHP_Heap* heap, const MIHP_HeapMem
 
 void MIHP_ValidateHeapSegmentHeader(const MIHP_Heap* heap, const MIHP_HeapSegmentHeader* segment)
 {
-	if (heap->Config.OnHeapCorruptionDetectedFn == NULL)
-		return;
-
 	uint32_t newChecksum;
 
 	if (heap->Config.HeapValidationMode == MIHP_HVM_None)
