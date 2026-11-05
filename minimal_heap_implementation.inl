@@ -405,10 +405,14 @@ MIHP_HeapError MIHP_SetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_Al
 	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return MIHP_HE_InvalidHeap;
 
+	MIHP_LockHeap(heap);
+
 	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	segment->CustomMetadata = metadata;
 	segment->Checksum = MIHP_GenerateHeapSegmentChecksum(heap, segment);
+
+	MIHP_UnlockHeap(heap);
 	return MIHP_HE_Success;
 }
 
@@ -420,14 +424,22 @@ MIHP_HeapError MIHP_GetPointerCustomMetadata(MIHP_Heap* heap, void* ptr, MIHP_Al
 	if (!MIHP_IsAddressInHeap(heap, ptr))
 		return MIHP_HE_InvalidHeap;
 
+	MIHP_LockHeap(heap);
+
 	MIHP_HeapSegmentHeader* segment = MIHP_GetHeapSegmentHeaderPtr(heap, ptr);
 	MIHP_ValidateHeapSegmentHeader(heap, segment);
 	*outMetadata = segment->CustomMetadata;
+
+	MIHP_UnlockHeap(heap);
+
 	return MIHP_HE_Success;
 }
 
 MIHP_HeapError MIHP_MergeHeaps(MIHP_Heap* sourceHeap, MIHP_Heap* heapToAbsorb)
 {
+	if (sourceHeap == heapToAbsorb)
+		return MIHP_HE_InvalidParameter;
+
 	if (!MIHP_IsHeapInitialized(sourceHeap))
 		return MIHP_HE_InvalidHeap;
 
@@ -500,7 +512,7 @@ bool MIHP_IsAddressInHeap(MIHP_Heap* heap, void* ptr)
 		uintptr_t ptrMin = (uintptr_t)currentArea;
 		uintptr_t ptrMax = (uintptr_t)currentArea + currentArea->AreaSize;
 
-		if (searchingPtr >= ptrMin && searchingPtr <= ptrMax)
+		if (searchingPtr >= ptrMin && searchingPtr < ptrMax)
 		{
 			MIHP_UnlockHeap(heap);
 			return true;
@@ -568,6 +580,8 @@ MIHP_HeapError MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
 	if (callback == NULL)
 		return MIHP_HE_InvalidParameter;
 
+	MIHP_LockHeap(heap);
+
 	MIHP_HeapMemoryAreaHeader* nextArea = heap->FirstArea;
 	while (nextArea != NULL)
 	{
@@ -585,6 +599,8 @@ MIHP_HeapError MIHP_WalkHeap(MIHP_Heap* heap, MIHP_WalkHeapCallbackFn* callback)
 			callback(heap, currentArea, currentSegment);
 		}
 	}
+
+	MIHP_UnlockHeap(heap);
 
 	return MIHP_HE_Success;
 }

@@ -2,7 +2,7 @@
 #define __MINIMAL_HEAP_H__
 
 #define MIHP_VERSION_MAJOR 1
-#define MIHP_VERSION_MINOR 13
+#define MIHP_VERSION_MINOR 14
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,6 +17,10 @@
 	#define MIHP_MEMSET(Ptr, Val, Size) do { for(size_t i = 0; i < Size; ++i) *((char*)Ptr + i) = Val; } while(0);
 #endif
 /* */
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
 
 typedef uintptr_t MIHP_HeapOpaque;
 
@@ -211,6 +215,10 @@ size_t MIHP_GetMaximalPayloadSize(const MIHP_Heap* heap);
 
 #ifdef MIHP_IMPLEMENTATION
 	#include "minimal_heap_implementation.inl"
+#endif
+
+#ifdef __cplusplus
+	}
 #endif
 
 #endif
